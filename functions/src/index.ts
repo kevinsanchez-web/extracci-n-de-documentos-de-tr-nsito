@@ -351,4 +351,4 @@ app.post("/api/external-system-mock", async (req, res) => {
   return res.status(201).json({ status: "success", recordId, receivedAt: mockRecord.receivedAt, documentType, clientName, message: "Documento registrado en el sistema destino." });
 });
 
-export const api = functions.https.onRequest(app);
+export const tramitesApi = functions.https.onRequest(app);
