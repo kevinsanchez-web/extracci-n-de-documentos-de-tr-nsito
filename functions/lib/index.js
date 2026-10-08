@@ -40,7 +40,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.api = void 0;
+exports.tramitesApi = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
@@ -393,5 +393,5 @@ app.post("/api/external-system-mock", async (req, res) => {
     await db.collection("external-records").doc(recordId).set(mockRecord);
     return res.status(201).json({ status: "success", recordId, receivedAt: mockRecord.receivedAt, documentType, clientName, message: "Documento registrado en el sistema destino." });
 });
-exports.api = functions.https.onRequest(app);
+exports.tramitesApi = functions.https.onRequest(app);
 //# sourceMappingURL=index.js.map

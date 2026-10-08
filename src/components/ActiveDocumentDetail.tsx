@@ -91,7 +91,11 @@ export default function ActiveDocumentDetail({
   }
 
   const meta = DOC_META[document.documentType] || {
-    label: document.documentType, color: "text-slate-700", bg: "bg-slate-50", border: "border-slate-200", darkBg: "dark:bg-slate-800"
+    label: document.documentType,
+    bannerBg: "bg-gradient-to-r from-slate-600 to-slate-700",
+    badgeBg: "bg-slate-700",
+    badgeText: "text-white",
+    accent: "text-slate-200"
   };
 
   const confidence = Math.round(document.confidence * 100);

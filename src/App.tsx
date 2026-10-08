@@ -35,6 +35,15 @@ export default function App() {
   const [isDark, setIsDark] = useState(() => localStorage.getItem("theme") === "dark");
   const [showHistory, setShowHistory] = useState(() => localStorage.getItem("showHistory") !== "false");
 
+  // Motor de IA seleccionado: Gemini (nube) o Jetson (OCR local)
+  const [aiEngine, setAiEngine] = useState<"gemini" | "jetson">(
+    () => localStorage.getItem("aiEngine") === "jetson" ? "jetson" : "gemini"
+  );
+  const changeAiEngine = (engine: "gemini" | "jetson") => {
+    setAiEngine(engine);
+    localStorage.setItem("aiEngine", engine);
+  };
+
   // Endpoint configurable de API
   const [targetApiUrl, setTargetApiUrl] = useState(() => {
     const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
@@ -83,15 +92,26 @@ export default function App() {
   // 1. Analizar archivo subido (MimeType / Base64)
   const handleAnalyzeDocument = async (base64: string, mimeType: string, fileName: string) => {
     setIsAnalyzing(true);
-    setAnalyzeMsg("Subiendo archivo encryptado de tránsito y lanzando IA de Gemini...");
-    
+
+    const isGemini = aiEngine === "gemini";
+    const endpoint = isGemini ? "/api/documents/analyze" : "/api/documents/analyze-jetson";
+    const engineLabel = isGemini ? "Gemini" : "Jetson (OCR local)";
+
     // Simular pequeños pasos de progreso visuales para una experiencia excelente de usuario
-    const steps = [
-      "Subiendo archivo encryptado de tránsito y lanzando IA de Gemini...",
-      "Ejecutando OCR inteligente y descifrando firmas manuscritas...",
-      "Clasificando formulario y aplicando mapeo de propiedades...",
-      "Formateando esquema JSON listo para sincronizar vía API...",
-    ];
+    const steps = isGemini
+      ? [
+          "Subiendo archivo encryptado de tránsito y lanzando IA de Gemini...",
+          "Ejecutando OCR inteligente y descifrando firmas manuscritas...",
+          "Clasificando formulario y aplicando mapeo de propiedades...",
+          "Formateando esquema JSON listo para sincronizar vía API...",
+        ]
+      : [
+          `Subiendo archivo y enviándolo a ${engineLabel}...`,
+          "Ejecutando OCR local y detectando maquetación...",
+          "Clasificando formulario y extrayendo campos...",
+          "Formateando esquema JSON listo para sincronizar vía API...",
+        ];
+    setAnalyzeMsg(steps[0]);
 
     let stepIndex = 0;
     const interval = setInterval(() => {
@@ -102,7 +122,7 @@ export default function App() {
     }, 1500);
 
     try {
-      const res = await fetch("/api/documents/analyze", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ base64, mimeType, fileName }),
@@ -274,6 +294,30 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* SWITCH DE MOTOR DE IA: GEMINI (NUBE) O JETSON (OCR LOCAL) */}
+            <div className="flex items-center bg-white/15 border border-white/20 rounded-xl p-1 gap-1" id="ai-engine-switch" title="Motor de análisis de documentos">
+              <button
+                onClick={() => changeAiEngine("gemini")}
+                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                  aiEngine === "gemini"
+                    ? "bg-white text-blue-700 shadow-sm"
+                    : "text-blue-100 hover:text-white"
+                }`}
+              >
+                Usar Gemini
+              </button>
+              <button
+                onClick={() => changeAiEngine("jetson")}
+                className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                  aiEngine === "jetson"
+                    ? "bg-white text-green-700 shadow-sm"
+                    : "text-blue-100 hover:text-white"
+                }`}
+              >
+                Usar Jetson
+              </button>
+            </div>
+
             <a
               href="/api-docs"
               target="_blank"

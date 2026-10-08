@@ -222,6 +222,122 @@ Rules:
   }
 });
 
+// 5b. Analizar documento usando la API local de Jetson (OCR + Layout, sin GPU)
+const JETSON_API_URL = process.env.JETSON_API_URL || "http://127.0.0.1:8000/api/v1/analyze-vision";
+
+app.post("/api/documents/analyze-jetson", async (req, res) => {
+  const { fileName, mimeType, base64 } = req.body;
+
+  if (!base64) {
+    return res.status(400).json({ error: "No se proporcionó data de imagen o archivo en base64" });
+  }
+
+  try {
+    const scannedAt = new Date().toISOString();
+    const baseTime = Date.now();
+    const tramiteId = "tramite_" + baseTime;
+
+    console.log(">>> LLAMANDO A JETSON (OCR local) con archivo:", fileName, mimeType);
+
+    // Convertir base64 a Blob y enviar como multipart/form-data al FastAPI
+    const binary = Buffer.from(base64, "base64");
+    const ext = (fileName || "").split(".").pop()?.toLowerCase() || "png";
+    const safeName = fileName || `documento.${ext}`;
+    const blob = new Blob([binary], { type: mimeType || "image/png" });
+    const formData = new FormData();
+    formData.append("file", blob, safeName);
+
+    const jetsonApiKey = process.env.JETSON_API_KEY;
+    if (!jetsonApiKey) {
+      return res.status(500).json({
+        error: "JETSON_API_KEY no configurada. Agréguela en el archivo .env (debe coincidir con una de las API_KEYS de la API FastAPI).",
+      });
+    }
+
+    const jetsonRes = await fetch(JETSON_API_URL, {
+      method: "POST",
+      headers: { "X-API-Key": jetsonApiKey },
+      body: formData,
+    });
+
+    if (!jetsonRes.ok) {
+      const detail = await jetsonRes.text().catch(() => "");
+      return res.status(502).json({
+        error: `La API de Jetson respondió con status ${jetsonRes.status}`,
+        details: detail,
+      });
+    }
+
+    const jetsonData = await jetsonRes.json();
+    const newRecords: any[] = [];
+
+    // Formato 1: la API ya devuelve documentos estructurados (found/documentType/extractedData)
+    const structuredDocs = Array.isArray(jetsonData?.documents)
+      ? jetsonData.documents
+      : jetsonData?.found !== undefined
+        ? [jetsonData]
+        : null;
+
+    if (structuredDocs) {
+      structuredDocs.forEach((parsed: any, i: number) => {
+        if (!parsed.found) return;
+        newRecords.push({
+          id: "doc_" + (baseTime + i),
+          tramiteId,
+          fileName: safeName,
+          documentType: parsed.documentType || "desconocido",
+          extractedData: parsed.extractedData || {},
+          confidence: parsed.confidence ?? 0.8,
+          summary: parsed.summary || "Documento procesado con OCR local (Jetson).",
+          scannedAt,
+          syncStatus: "pending" as const,
+          logs: []
+        });
+      });
+    } else {
+      // Formato 2: respuesta cruda de visión (pages/layout_elements) — guardar texto extraído
+      const fullText = (jetsonData?.pages || [])
+        .flatMap((p: any) => p.layout_elements || [])
+        .map((el: any) => el.extracted_text || "")
+        .join(" ")
+        .trim();
+
+      newRecords.push({
+        id: "doc_" + baseTime,
+        tramiteId,
+        fileName: safeName,
+        documentType: "desconocido",
+        extractedData: {},
+        confidence: 0,
+        summary: `OCR local completado (${jetsonData?.total_pages || 1} página(s)). Complete los campos manualmente.`,
+        scannedAt,
+        syncStatus: "pending" as const,
+        logs: [],
+        rawText: fullText
+      });
+    }
+
+    if (newRecords.length === 0) {
+      return res.status(422).json({ error: "No se encontraron documentos reconocibles en el archivo." });
+    }
+
+    console.log(`[Jetson] Documentos procesados: ${newRecords.length}`);
+    newRecords.forEach(r => documentsDB.unshift(r));
+    saveFile(DOCS_FILE, documentsDB);
+    return res.status(201).json(newRecords);
+
+  } catch (error: any) {
+    console.error("Error conectando con la API de Jetson:", error);
+    const isConnError = error.message?.includes("fetch failed") || error.message?.includes("ECONNREFUSED");
+    return res.status(500).json({
+      error: isConnError
+        ? `No se pudo conectar con la API de Jetson en ${JETSON_API_URL}. Verifique que el servidor FastAPI esté corriendo.`
+        : "Error en el reconocimiento OCR local del documento",
+      details: error.message || "Error desconocido"
+    });
+  }
+});
+
 // 6. Endpoint de Sincronización (Viajar por una API a otro sistema)
 app.post("/api/documents/sync/:id", async (req, res) => {
   const { id } = req.params;
