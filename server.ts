@@ -328,12 +328,17 @@ app.post("/api/documents/analyze-jetson", async (req, res) => {
 
   } catch (error: any) {
     console.error("Error conectando con la API de Jetson:", error);
-    const isConnError = error.message?.includes("fetch failed") || error.message?.includes("ECONNREFUSED");
-    return res.status(500).json({
-      error: isConnError
-        ? `No se pudo conectar con la API de Jetson en ${JETSON_API_URL}. Verifique que el servidor FastAPI esté corriendo.`
-        : "Error en el reconocimiento OCR local del documento",
-      details: error.message || "Error desconocido"
+    // undici oculta la causa real en error.cause (ECONNREFUSED, UND_ERR_HEADERS_TIMEOUT, ECONNRESET...)
+    const causeCode: string = error.cause?.code || "";
+    const isTimeout = causeCode.includes("TIMEOUT");
+    const isConnError = causeCode === "ECONNREFUSED" || causeCode === "ECONNRESET" || causeCode === "UND_ERR_SOCKET";
+    return res.status(isTimeout ? 504 : 500).json({
+      error: isTimeout
+        ? `La API de Jetson tardó demasiado en responder (${causeCode}). El documento puede ser muy pesado; pruebe con menos páginas.`
+        : isConnError
+          ? `Se perdió la conexión con la API de Jetson en ${JETSON_API_URL} (${causeCode}). Verifique que el servidor FastAPI esté corriendo y no se haya reiniciado.`
+          : "Error en el reconocimiento OCR local del documento",
+      details: `${error.message || "Error desconocido"}${causeCode ? ` [${causeCode}]` : ""}`
     });
   }
 });
