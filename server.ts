@@ -9,9 +9,28 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import dns from "node:dns";
 import { createJob, getJob, mapRecords, JetsonError, JetsonConfig } from "./functions/src/jetson.ts";
 
 dotenv.config();
+
+// DNS alternativo (opcional): algunas redes (p. ej. institucionales) no resuelven las direcciones temporales de Cloudflare
+// (*.trycloudflare.com). Con JETSON_DNS_SERVER=1.1.1.1 esos nombres se resuelven con ese servidor DNS; el resto usa el del sistema.
+const altDns = (process.env.JETSON_DNS_SERVER || "").trim();
+if (altDns) {
+  const resolver = new dns.promises.Resolver();
+  resolver.setServers([altDns]);
+  const systemLookup = dns.lookup;
+  (dns as any).lookup = (hostname: string, options: any, callback?: any) => {
+    const cb = typeof options === "function" ? options : callback;
+    const opts = typeof options === "object" && options ? options : {};
+    if (!/\.trycloudflare\.com$/i.test(hostname)) return (systemLookup as any)(hostname, options, callback);
+    resolver.resolve4(hostname).then(
+      (addrs) => (opts.all ? cb(null, addrs.map((address) => ({ address, family: 4 }))) : cb(null, addrs[0], 4)),
+      (err) => cb(err),
+    );
+  };
+}
 
 const app = express();
 const PORT = 3000;
