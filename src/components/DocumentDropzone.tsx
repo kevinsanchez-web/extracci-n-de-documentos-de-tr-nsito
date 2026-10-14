@@ -6,6 +6,9 @@
 import React, { useState, useRef } from "react";
 import { Upload, HelpCircle, Loader2, Plus, TriangleAlert } from "lucide-react";
 
+/** Tamaño máximo de archivo en MB (base64 + 33 % debe caber en los 32 MB de la Cloud Function de 2.ª generación). */
+const MAX_FILE_MB = 15;
+
 interface DocumentDropzoneProps {
   onAnalyze: (base64: string, mimeType: string, fileName: string) => void;
   isAnalyzing: boolean;
@@ -30,6 +33,11 @@ export default function DocumentDropzone({ onAnalyze, isAnalyzing, onShowHelp, o
     const validTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
     if (!validTypes.includes(file.type)) {
       setFileError("Formato no admitido. Suba una imagen (JPEG, PNG, WEBP) o un archivo PDF.");
+      return;
+    }
+    // El archivo viaja en base64 (+33 %) y la Cloud Function acepta hasta 32 MB por petición
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      setFileError(`El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB y el máximo es ${MAX_FILE_MB} MB. Comprímalo o divídalo en varios archivos.`);
       return;
     }
     setFileError(null);

@@ -11,6 +11,7 @@ import DocumentList from "./components/DocumentList";
 import DocumentTypeTabs from "./components/DocumentTypeTabs";
 import ExternalDatabaseView from "./components/ExternalDatabaseView";
 import NetworkLogModal from "./components/NetworkLogModal";
+import { analyzeWithJetson } from "./lib/jetsonClient";
 import {
   Cpu, BookOpen, Clock, Info, ExternalLink,
   RefreshCw, Moon, Sun,
@@ -138,22 +139,29 @@ export default function App() {
     }, 1500);
 
     try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base64, mimeType, fileName }),
-      });
+      let newRecords: any[];
+      if (isGemini) {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ base64, mimeType, fileName }),
+        });
 
-      clearInterval(interval);
+        clearInterval(interval);
 
-      if (!res.ok) {
-        const errData = await res.json();
-        const msg = [errData.error, errData.details].filter(Boolean).join(" — ");
-        throw new Error(msg || "Fallo en la comunicación con la IA");
+        if (!res.ok) {
+          const errData = await res.json();
+          const msg = [errData.error, errData.details].filter(Boolean).join(" — ");
+          throw new Error(msg || "Fallo en la comunicación con la IA");
+        }
+
+        const result = await res.json();
+        newRecords = Array.isArray(result) ? result : [result];
+      } else {
+        // OCR local: trabajo asíncrono con el avance real de la lectura (en vez de los mensajes simulados)
+        clearInterval(interval);
+        newRecords = await analyzeWithJetson(base64, mimeType, fileName, setAnalyzeMsg);
       }
-
-      const result = await res.json();
-      const newRecords = Array.isArray(result) ? result : [result];
       setDocuments((prev) => [...newRecords, ...prev]);
       setActiveDocId(newRecords[0].id);
     } catch (error: any) {

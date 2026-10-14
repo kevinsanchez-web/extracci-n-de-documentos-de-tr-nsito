@@ -9,6 +9,7 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import { createJob, getJob, mapRecords, JetsonError, JetsonConfig } from "./functions/src/jetson.ts";
 
 dotenv.config();
 
@@ -222,124 +223,65 @@ Rules:
   }
 });
 
-// 5b. Analizar documento usando la API local de Jetson (OCR + Layout, sin GPU)
-const JETSON_API_URL = process.env.JETSON_API_URL || "http://127.0.0.1:8000/api/v1/analyze-vision";
+// 5b. OCR local (API de la Jetson) por TRABAJOS ASÍNCRONOS: mismo protocolo que la Cloud Function.
+// POST crea el trabajo y responde al instante con el jobId; GET lo consulta hasta que termina y entonces
+// devuelve (y guarda) los registros. La lógica compartida vive en functions/src/jetson.ts.
+const jetsonConfig = (): JetsonConfig => ({
+  url: process.env.JETSON_API_URL || "http://127.0.0.1:8000",
+  apiKey: process.env.JETSON_API_KEY || "",
+  accessClientId: process.env.CF_ACCESS_CLIENT_ID,
+  accessClientSecret: process.env.CF_ACCESS_CLIENT_SECRET,
+});
+
+function sendJetsonError(res: express.Response, e: any) {
+  const err = e instanceof JetsonError ? e : new JetsonError(500, "Error en el reconocimiento OCR local del documento", e?.message);
+  console.error("[Jetson]", err.status, err.message, err.details || "");
+  return res.status(err.status).json({ error: err.message, details: err.details });
+}
 
 app.post("/api/documents/analyze-jetson", async (req, res) => {
   const { fileName, mimeType, base64 } = req.body;
-
   if (!base64) {
     return res.status(400).json({ error: "No se proporcionó data de imagen o archivo en base64" });
   }
-
-  try {
-    const scannedAt = new Date().toISOString();
-    const baseTime = Date.now();
-    const tramiteId = "tramite_" + baseTime;
-
-    console.log(">>> LLAMANDO A JETSON (OCR local) con archivo:", fileName, mimeType);
-
-    // Convertir base64 a Blob y enviar como multipart/form-data al FastAPI
-    const binary = Buffer.from(base64, "base64");
-    const ext = (fileName || "").split(".").pop()?.toLowerCase() || "png";
-    const safeName = fileName || `documento.${ext}`;
-    const blob = new Blob([binary], { type: mimeType || "image/png" });
-    const formData = new FormData();
-    formData.append("file", blob, safeName);
-
-    const jetsonApiKey = process.env.JETSON_API_KEY;
-    if (!jetsonApiKey) {
-      return res.status(500).json({
-        error: "JETSON_API_KEY no configurada. Agréguela en el archivo .env (debe coincidir con una de las API_KEYS de la API FastAPI).",
-      });
-    }
-
-    const jetsonRes = await fetch(JETSON_API_URL, {
-      method: "POST",
-      headers: { "X-API-Key": jetsonApiKey },
-      body: formData,
+  if (!process.env.JETSON_API_KEY) {
+    return res.status(500).json({
+      error: "JETSON_API_KEY no configurada. Agréguela en el archivo .env (debe coincidir con una de las API_KEYS de la API FastAPI).",
     });
+  }
+  try {
+    const jobId = await createJob(jetsonConfig(), base64, mimeType, fileName);
+    console.log(">>> TRABAJO creado en la API de lectura:", jobId, fileName);
+    return res.status(202).json({ jobId, status: "queued" });
+  } catch (e) {
+    return sendJetsonError(res, e);
+  }
+});
 
-    if (!jetsonRes.ok) {
-      const detail = await jetsonRes.text().catch(() => "");
-      return res.status(502).json({
-        error: `La API local respondió con status ${jetsonRes.status}`,
-        details: detail,
-      });
+app.get("/api/documents/analyze-jetson/:jobId", async (req, res) => {
+  const { jobId } = req.params;
+  const fileName = typeof req.query.fileName === "string" ? req.query.fileName : "documento";
+  try {
+    const job = await getJob(jetsonConfig(), jobId);
+    if (job.status === "queued" || job.status === "processing") {
+      return res.json({ status: job.status, progress: job.progress || null });
     }
-
-    const jetsonData = await jetsonRes.json();
-    const newRecords: any[] = [];
-
-    // Formato 1: la API ya devuelve documentos estructurados (found/documentType/extractedData)
-    const structuredDocs = Array.isArray(jetsonData?.documents)
-      ? jetsonData.documents
-      : jetsonData?.found !== undefined
-        ? [jetsonData]
-        : null;
-
-    if (structuredDocs) {
-      structuredDocs.forEach((parsed: any, i: number) => {
-        if (!parsed.found) return;
-        newRecords.push({
-          id: "doc_" + (baseTime + i),
-          tramiteId,
-          fileName: safeName,
-          documentType: parsed.documentType || "desconocido",
-          extractedData: parsed.extractedData || {},
-          confidence: parsed.confidence ?? 0.8,
-          summary: parsed.summary || "Documento procesado con OCR local.",
-          scannedAt,
-          syncStatus: "pending" as const,
-          logs: []
-        });
-      });
-    } else {
-      // Formato 2: respuesta cruda de visión (pages/layout_elements) — guardar texto extraído
-      const fullText = (jetsonData?.pages || [])
-        .flatMap((p: any) => p.layout_elements || [])
-        .map((el: any) => el.extracted_text || "")
-        .join(" ")
-        .trim();
-
-      newRecords.push({
-        id: "doc_" + baseTime,
-        tramiteId,
-        fileName: safeName,
-        documentType: "desconocido",
-        extractedData: {},
-        confidence: 0,
-        summary: `OCR local completado (${jetsonData?.total_pages || 1} página(s)). Complete los campos manualmente.`,
-        scannedAt,
-        syncStatus: "pending" as const,
-        logs: [],
-        rawText: fullText
-      });
+    if (job.status === "error") {
+      const e = job.error || { status: 500, detail: "Error desconocido" };
+      return res.status(e.status >= 400 && e.status < 600 ? e.status : 500).json({ error: e.detail });
     }
-
-    if (newRecords.length === 0) {
+    const records = mapRecords(job.result, jobId, fileName, new Date().toISOString());
+    if (records.length === 0) {
       return res.status(422).json({ error: "No se encontraron documentos reconocibles en el archivo." });
     }
-
-    console.log(`[Jetson] Documentos procesados: ${newRecords.length}`);
-    newRecords.forEach(r => documentsDB.unshift(r));
-    saveFile(DOCS_FILE, documentsDB);
-    return res.status(201).json(newRecords);
-
-  } catch (error: any) {
-    console.error("Error conectando con la API local:", error);
-    // undici oculta la causa real en error.cause (ECONNREFUSED, UND_ERR_HEADERS_TIMEOUT, ECONNRESET...)
-    const causeCode: string = error.cause?.code || "";
-    const isTimeout = causeCode.includes("TIMEOUT");
-    const isConnError = causeCode === "ECONNREFUSED" || causeCode === "ECONNRESET" || causeCode === "UND_ERR_SOCKET";
-    return res.status(isTimeout ? 504 : 500).json({
-      error: isTimeout
-        ? `La API local tardó demasiado en responder (${causeCode}). El documento puede ser muy pesado; pruebe con menos páginas.`
-        : isConnError
-          ? `Se perdió la conexión con la API local en ${JETSON_API_URL} (${causeCode}). Verifique que el servidor FastAPI esté corriendo y no se haya reiniciado.`
-          : "Error en el reconocimiento OCR local del documento",
-      details: `${error.message || "Error desconocido"}${causeCode ? ` [${causeCode}]` : ""}`
-    });
+    // ids derivados del jobId: consultar dos veces el mismo trabajo no duplica registros
+    const fresh = records.filter((r) => !documentsDB.some((d) => d.id === r.id));
+    fresh.forEach((r) => documentsDB.unshift(r));
+    if (fresh.length) saveFile(DOCS_FILE, documentsDB);
+    console.log(`[Jetson] Documentos procesados: ${records.length}`);
+    return res.json({ status: "done", records });
+  } catch (e) {
+    return sendJetsonError(res, e);
   }
 });
 

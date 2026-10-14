@@ -4,7 +4,7 @@
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
-      { "source": "/api/**", "function": "tramitesApi", "region": "us-central1" },
+      { "source": "/api/**", "function": { "functionId": "tramitesApiV2", "region": "southamerica-east1" } },
       { "source": "/api-docs", "destination": "/api-docs.html" },
       { "source": "**",      "destination": "/index.html" }
     ]

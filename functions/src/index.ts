@@ -7,6 +7,9 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
+import { onRequest } from "firebase-functions/v2/https";
+import { defineSecret, defineString } from "firebase-functions/params";
+import { createJob, getJob, mapRecords, JetsonError, JetsonConfig } from "./jetson";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -351,4 +354,82 @@ app.post("/api/external-system-mock", async (req, res) => {
   return res.status(201).json({ status: "success", recordId, receivedAt: mockRecord.receivedAt, documentType, clientName, message: "Documento registrado en el sistema destino." });
 });
 
+/* ==================== OCR LOCAL (JETSON) POR TRABAJOS ASÍNCRONOS ==================== */
+// Configuración: `firebase functions:secrets:set JETSON_API_KEY` (y CF_ACCESS_*; use "-" si el túnel no usa Access)
+// y el parámetro JETSON_API_URL (en functions/.env o al desplegar). Nada de esto viaja al navegador.
+const JETSON_API_URL = defineString("JETSON_API_URL", { description: "Dirección de la API de lectura OCR, ej. https://api.midominio.com" });
+const JETSON_API_KEY = defineSecret("JETSON_API_KEY");
+const CF_ACCESS_CLIENT_ID = defineSecret("CF_ACCESS_CLIENT_ID");
+const CF_ACCESS_CLIENT_SECRET = defineSecret("CF_ACCESS_CLIENT_SECRET");
+
+function jetsonConfig(): JetsonConfig {
+  return {
+    url: JETSON_API_URL.value(),
+    apiKey: JETSON_API_KEY.value(),
+    accessClientId: CF_ACCESS_CLIENT_ID.value(),
+    accessClientSecret: CF_ACCESS_CLIENT_SECRET.value(),
+  };
+}
+
+function sendJetsonError(res: express.Response, e: any) {
+  const err = e instanceof JetsonError ? e : new JetsonError(500, "Error en el reconocimiento OCR local del documento", e?.message);
+  console.error("[Jetson]", err.status, err.message, err.details || "");
+  return res.status(err.status).json({ error: err.message, details: err.details });
+}
+
+// 5b. Crear el trabajo en la Jetson: responde en segundos con el jobId (el análisis sigue en la Jetson)
+app.post("/api/documents/analyze-jetson", async (req, res) => {
+  const { fileName, mimeType, base64 } = req.body;
+  if (!base64) return res.status(400).json({ error: "No se proporcionó data de imagen o archivo en base64" });
+  try {
+    const jobId = await createJob(jetsonConfig(), base64, mimeType, fileName);
+    console.log(">>> TRABAJO creado en la Jetson:", jobId, fileName);
+    return res.status(202).json({ jobId, status: "queued" });
+  } catch (e) {
+    return sendJetsonError(res, e);
+  }
+});
+
+// 5c. Consultar el trabajo; al terminar devuelve (y guarda) los registros de documentos
+app.get("/api/documents/analyze-jetson/:jobId", async (req, res) => {
+  const { jobId } = req.params;
+  const fileName = typeof req.query.fileName === "string" ? req.query.fileName : "documento";
+  try {
+    const job = await getJob(jetsonConfig(), jobId);
+    if (job.status === "queued" || job.status === "processing") {
+      return res.json({ status: job.status, progress: job.progress || null });
+    }
+    if (job.status === "error") {
+      const e = job.error || { status: 500, detail: "Error desconocido" };
+      return res.status(e.status >= 400 && e.status < 600 ? e.status : 500).json({ error: e.detail });
+    }
+    const records = mapRecords(job.result, jobId, fileName, new Date().toISOString());
+    if (records.length === 0) {
+      return res.status(422).json({ error: "No se encontraron documentos reconocibles en el archivo." });
+    }
+    // ids determinísticos (derivados del jobId): consultar dos veces el mismo trabajo no duplica registros
+    const batch = db.batch();
+    records.forEach((r) => batch.set(db.collection("documents").doc(r.id), r));
+    await batch.commit();
+    console.log(`[Jetson] Documentos procesados: ${records.length}`);
+    return res.json({ status: "done", records });
+  } catch (e) {
+    return sendJetsonError(res, e);
+  }
+});
+
+// Función de 1.ª generación (la que ya está desplegada; se conserva para no romper nada)
 export const tramitesApi = functions.https.onRequest(app);
+
+// Función de 2.ª generación: acepta archivos de hasta 32 MB, vive en São Paulo y puede leer los secretos de la Jetson.
+// firebase.json la usa para /api/**. Cuando todo funcione se puede borrar la anterior: `firebase functions:delete tramitesApi`.
+export const tramitesApiV2 = onRequest(
+  {
+    region: "southamerica-east1",
+    secrets: [JETSON_API_KEY, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET],
+    timeoutSeconds: 120,
+    memory: "512MiB",
+    maxInstances: 5,
+  },
+  app,
+);
