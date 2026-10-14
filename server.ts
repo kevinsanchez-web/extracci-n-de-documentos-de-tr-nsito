@@ -263,7 +263,7 @@ app.post("/api/documents/analyze-jetson", async (req, res) => {
     if (!jetsonRes.ok) {
       const detail = await jetsonRes.text().catch(() => "");
       return res.status(502).json({
-        error: `La API de Jetson respondió con status ${jetsonRes.status}`,
+        error: `La API local respondió con status ${jetsonRes.status}`,
         details: detail,
       });
     }
@@ -288,7 +288,7 @@ app.post("/api/documents/analyze-jetson", async (req, res) => {
           documentType: parsed.documentType || "desconocido",
           extractedData: parsed.extractedData || {},
           confidence: parsed.confidence ?? 0.8,
-          summary: parsed.summary || "Documento procesado con OCR local (Jetson).",
+          summary: parsed.summary || "Documento procesado con OCR local.",
           scannedAt,
           syncStatus: "pending" as const,
           logs: []
@@ -327,16 +327,16 @@ app.post("/api/documents/analyze-jetson", async (req, res) => {
     return res.status(201).json(newRecords);
 
   } catch (error: any) {
-    console.error("Error conectando con la API de Jetson:", error);
+    console.error("Error conectando con la API local:", error);
     // undici oculta la causa real en error.cause (ECONNREFUSED, UND_ERR_HEADERS_TIMEOUT, ECONNRESET...)
     const causeCode: string = error.cause?.code || "";
     const isTimeout = causeCode.includes("TIMEOUT");
     const isConnError = causeCode === "ECONNREFUSED" || causeCode === "ECONNRESET" || causeCode === "UND_ERR_SOCKET";
     return res.status(isTimeout ? 504 : 500).json({
       error: isTimeout
-        ? `La API de Jetson tardó demasiado en responder (${causeCode}). El documento puede ser muy pesado; pruebe con menos páginas.`
+        ? `La API local tardó demasiado en responder (${causeCode}). El documento puede ser muy pesado; pruebe con menos páginas.`
         : isConnError
-          ? `Se perdió la conexión con la API de Jetson en ${JETSON_API_URL} (${causeCode}). Verifique que el servidor FastAPI esté corriendo y no se haya reiniciado.`
+          ? `Se perdió la conexión con la API local en ${JETSON_API_URL} (${causeCode}). Verifique que el servidor FastAPI esté corriendo y no se haya reiniciado.`
           : "Error en el reconocimiento OCR local del documento",
       details: `${error.message || "Error desconocido"}${causeCode ? ` [${causeCode}]` : ""}`
     });

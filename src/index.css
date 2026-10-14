@@ -1,8 +1,468 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
+
+/* El modo oscuro se activa con la clase .dark en <html> (ver useEffect en App.tsx) */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ==========================================================================
+   Sistema de diseño: Apple × Nintendo (Reglas de diseño v1.1.0)
+   ========================================================================== */
+
+:root {
+  /* Fondos neutros */
+  --bg-app: #F2F6FC;
+  --surface-card: #FFFFFF;
+  --surface-glass: rgba(255, 255, 255, 0.75);
+
+  /* Texto y bordes */
+  --text-primary: #0F1A2E;
+  --text-secondary: #4A5A74;
+  --border-subtle: rgba(15, 40, 90, 0.08);
+  --border-nintendo: rgba(15, 40, 90, 0.18);
+  --focus-ring: #1F5FD0;
+
+  /* Pasteles (siempre relleno, nunca color de texto) */
+  --pastel-azure: #86A9D4;
+  --pastel-butter: #F2E3AE;
+  --pastel-powder: #D6E0EE;
+  --pastel-sky: #A9C9DE;
+  --pastel-coral: #E8A0A5;
+  --on-pastel: #0F1A2E;
+
+  /* Borde de componentes pastel */
+  --edge-mix: #000;
+  --edge-pct: 55%;
+
+  /* Sombras y vidrio */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.03);
+  --shadow-card: 0 1px 2px rgba(15, 40, 90, 0.05);
+  --shadow-plop: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --glass-blur: blur(20px) saturate(180%);
+
+  /* Barra superior: bloque azul propio, distinto del fondo de la página */
+  --header-bg: #6B8DB7;
+  --header-shadow: 0 2px 14px rgba(15, 40, 90, 0.22);
+
+  /* Altura fija de los paneles Historial y Detalle (escritorio): depende de la pantalla, no del contenido */
+  --panel-h: clamp(30rem, calc(100vh - 14rem), 52rem);
+
+  /* Animación */
+  --ease-apple-screen: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-screen: 350ms;
+  --ease-plop-press: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-plop-release: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-plop-press: 100ms;
+  --duration-plop-release: 250ms;
+}
+
+.dark {
+  --bg-app: #0A1020;
+  --surface-card: #121A2C;
+  --surface-glass: rgba(18, 26, 44, 0.75);
+
+  --text-primary: #EAF1FB;
+  --text-secondary: #9FB0CC;
+  --border-subtle: rgba(140, 180, 255, 0.10);
+  --border-nintendo: rgba(140, 180, 255, 0.22);
+  --focus-ring: #8AB4FF;
+
+  --edge-mix: #fff;
+  --edge-pct: 70%;
+
+  --header-bg: #26405E;
+  --header-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+
+  --shadow-card: none;
+  --shadow-plop: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
+}
+
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "SF Pro Text", "SF Pro Display", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-pastel-azure: #86A9D4;
+  --color-pastel-butter: #F2E3AE;
+  --color-pastel-powder: #D6E0EE;
+  --color-pastel-sky: #A9C9DE;
+  --color-pastel-coral: #E8A0A5;
+
+  --radius-card: 1.5rem;
+  --radius-control: 1rem;
+
+  --ease-apple-screen: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-plop-release: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-plop-press: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --animate-plop: plop-bounce 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-screen-in: screen-fade-in 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  /* Alias de las animaciones que ya usaba la app */
+  --animate-slideDown: screen-fade-in 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-fadeIn: screen-fade-in 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+  @keyframes plop-bounce {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(0.92); }
+    70%  { transform: scale(1.04); }
+    100% { transform: scale(1); }
+  }
+  @keyframes screen-fade-in {
+    0%   { opacity: 0; transform: translateY(12px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* Colores semánticos que cambian con el tema */
+@theme inline {
+  --color-app: var(--bg-app);
+  --color-card: var(--surface-card);
+  --color-ink: var(--text-primary);
+  --color-ink-muted: var(--text-secondary);
+  --color-line: var(--border-nintendo);
+  --color-line-soft: var(--border-subtle);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+html {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+}
+body {
+  margin: 0;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4 { color: var(--text-primary); }
+
+/* Cifras e identificadores alinean en columnas */
+.nums { font-variant-numeric: tabular-nums; }
+
+/* Escala tipográfica (sección 4) */
+.t-display { font-size: 1.375rem;      line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; }
+.t-h1      { font-size: 1.125rem;    line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; }
+.t-h2      { font-size: 0.9375rem;  line-height: 1.3;  font-weight: 600; }
+.t-body    { font-size: 0.8125rem; line-height: 1.5;  font-weight: 400; }
+.t-caption { font-size: 0.6875rem; line-height: 1.4;  font-weight: 500; letter-spacing: 0.01em; color: var(--text-secondary); }
+
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: var(--border-nintendo) transparent; }
+
+/* ==========================================================================
+   Superficies
+   ========================================================================== */
+
+.card {
+  background-color: var(--surface-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.card-compact {
+  background-color: var(--bg-app);
+  border-radius: var(--radius-control);
+}
+.divider { border-color: color-mix(in srgb, var(--text-primary) 5%, transparent); }
+
+/* Barra translúcida (la capa de vidrio va en un hijo para no romper position:fixed de otros hijos) */
+.glass-layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--header-bg);
+  box-shadow: var(--header-shadow);
+}
+
+/* ==========================================================================
+   Pastel: tonos y borde obligatorio
+   ========================================================================== */
+
+.tone-azure     { --c: var(--pastel-azure); }
+.tone-butter   { --c: var(--pastel-butter); }
+.tone-powder { --c: var(--pastel-powder); }
+.tone-sky      { --c: var(--pastel-sky); }
+.tone-coral    { --c: var(--pastel-coral); }
+
+.pastel-edge {
+  background-color: var(--c);
+  color: var(--on-pastel);
+}
+
+/* Versión suave (fondo de aviso/selección), sin relleno saturado */
+.pastel-soft {
+  background-color: color-mix(in srgb, var(--c) 28%, var(--surface-card));
+  color: var(--text-primary);
+  border-radius: var(--radius-control);
+}
+
+/* ==========================================================================
+   Efecto "plop" (el orden importa: hover → active)
+   ========================================================================== */
+
+:is(.plop-interactive, .btn, .chip-btn, .row-interactive, .card-clickable) {
+  transition: transform var(--duration-plop-release) var(--ease-plop-release),
+              box-shadow var(--duration-plop-release) var(--ease-plop-release),
+              background-color 150ms ease,
+              opacity 150ms ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.plop-interactive, .btn, .chip-btn, .row-interactive, .card-clickable):hover {
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: var(--shadow-plop);
+  }
+}
+
+:is(.plop-interactive, .btn, .chip-btn, .row-interactive, .card-clickable):active {
+  transform: scale(0.93);
+  transition-duration: var(--duration-plop-press);
+  transition-timing-function: var(--ease-plop-press);
+}
+
+:is(.plop-interactive, .btn, .chip-btn, .row-interactive, .card-clickable):focus-visible,
+.field:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+:is(.plop-interactive, .btn, .chip-btn, .row-interactive, .card-clickable):is(:disabled, [aria-disabled="true"]) {
+  opacity: 0.5;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ==========================================================================
+   Botones (siempre ≥ 44px de alto, borde pastel obligatorio)
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 32px;
+  padding: 0 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.btn-icon { min-width: 32px; padding: 0; }
+/* En pantallas táctiles el área sigue siendo de 44px */
+@media (pointer: coarse) {
+  .btn { min-height: 44px; }
+  .btn-icon { min-width: 44px; }
+  .field { min-height: 44px; font-size: 16px; }
+}
+
+.btn-primary   { --c: var(--pastel-azure); }
+.btn-secondary { --c: var(--pastel-powder); }
+.btn-info      { --c: var(--pastel-sky); }
+.btn-warning   { --c: var(--pastel-butter); }
+.btn-danger    { --c: var(--pastel-coral); }
+:is(.btn-primary, .btn-secondary, .btn-info, .btn-warning, .btn-danger) {
+  background-color: var(--c);
+  color: var(--on-pastel);
+}
+
+/* Neutro sin borde (acciones terciarias) */
+.btn-ghost {
+  background-color: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  color: var(--text-primary);
+}
+.btn-ghost[aria-pressed="true"],
+.btn-ghost[aria-selected="true"] {
+  --c: var(--pastel-sky);
+  background-color: color-mix(in srgb, var(--c) 45%, var(--surface-card));
+}
+
+/* Chips y etiquetas */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.0625rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background-color: var(--c, var(--surface-card));
+  color: var(--on-pastel);
+}
+.chip-neutral {
+  --c: transparent;
+  background-color: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: var(--text-secondary);
+}
+/* Chip clicable: el área táctil llega a 44px sin agrandar el aspecto */
+.chip-btn { position: relative; }
+.chip-btn::after { content: ""; position: absolute; inset: -8px 0; }
+
+/* ==========================================================================
+   Formularios
+   ========================================================================== */
+
+.field-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary);
+}
+.field {
+  width: 100%;
+  min-height: 32px;
+  padding: 0.3125rem 0.75rem;
+  border-radius: var(--radius-control);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  border: 0;
+  font-size: 0.8125rem; /* en táctil sube a 16px (ver bloque pointer: coarse) */
+  line-height: 1.4;
+  font-family: inherit;
+}
+.field-with-icon { padding-left: 2.5rem; }
+.field-pill { border-radius: 9999px; padding-left: 1rem; padding-right: 0.875rem; }
+
+/* Menú desplegable propio: contenedor y opciones redondeados (píldoras) */
+.popover {
+  background-color: color-mix(in srgb, var(--text-primary) 4%, var(--surface-card));
+  border-radius: 1.5rem;
+  padding: 0.375rem;
+  box-shadow: 0 12px 32px -8px rgba(15, 40, 90, 0.28);
+}
+.dark .popover { box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.6); }
+.pill-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 32px;
+  padding: 0 0.875rem 0 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--text-primary);
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 100ms ease;
+}
+.pill-option:hover, .pill-option:focus-visible { background-color: color-mix(in srgb, var(--text-primary) 7%, transparent); }
+.pill-option[aria-selected="true"] { background-color: color-mix(in srgb, var(--pastel-sky) 55%, var(--surface-card)); font-weight: 600; }
+.pill-option:active { transform: scale(0.97); }
+@media (pointer: coarse) { .pill-option { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .pill-option:active { transform: none; } }
+.field::placeholder { color: var(--text-secondary); opacity: 0.8; }
+.field:focus { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.field[aria-invalid="true"] {
+  background-color: color-mix(in srgb, var(--pastel-coral) 22%, var(--surface-card));
+}
+/* Valor detectado automáticamente (OCR) */
+.field-detected { background-color: color-mix(in srgb, var(--pastel-sky) 22%, var(--surface-card)); }
+.field-error-msg { margin-top: 0.25rem; font-size: 0.6875rem; font-weight: 500; color: var(--text-primary); display: flex; gap: 0.375rem; align-items: center; }
+
+/* ==========================================================================
+   Modales (bottom sheet en móvil, centrado desde sm)
+   ========================================================================== */
+
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+.modal-panel {
+  width: 100%;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface-card);
+  color: var(--text-primary);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  box-shadow: var(--shadow-card);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: screen-fade-in var(--duration-screen) var(--ease-apple-screen) forwards;
+}
+@media (min-width: 640px) {
+  .modal-scrim { align-items: center; padding: 1rem; }
+  .modal-panel { max-width: 32rem; border-radius: var(--radius-card); padding-bottom: 0; }
+  .modal-panel-lg { max-width: 42rem; }
+  .modal-panel-xl { max-width: 56rem; }
+}
+
+/* ==========================================================================
+   Navegación móvil (dock inferior) y safe areas
+   ========================================================================== */
+
+.dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  background-color: var(--surface-card);
+  border-top: 1px solid var(--border-subtle);
+}
+@media (min-width: 768px) {
+  .dock {
+    position: static;
+    z-index: auto;
+    padding: 0;
+    background: none;
+    border: 0;
+    justify-content: flex-end;
+  }
+}
+.safe-top { padding-top: env(safe-area-inset-top, 0px); }
+
+/* ==========================================================================
+   Movimiento reducido
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.plop-interactive, .btn, .chip-btn, .row-interactive, .card-clickable),
+  :is(.plop-interactive, .btn, .chip-btn, .row-interactive, .card-clickable):hover,
+  :is(.plop-interactive, .btn, .chip-btn, .row-interactive, .card-clickable):active {
+    transform: none;
+    transition: background-color 150ms ease, opacity 150ms ease;
+  }
+  :is(.plop-interactive, .btn, .chip-btn, .row-interactive, .card-clickable):active { opacity: 0.8; }
+
+  .animate-plop, .animate-screen-in, .animate-slideDown, .animate-fadeIn, .modal-panel { animation: none; }
+  .animate-spin, .animate-pulse { animation-duration: 3s; }
+}
+
+/* ==========================================================================
+   Elementos sobre la barra superior azul
+   ========================================================================== */
+.header-sub { color: color-mix(in srgb, var(--text-primary) 80%, transparent); }
+.btn-on-header { background-color: color-mix(in srgb, var(--text-primary) 14%, transparent); }
+@media (min-width: 768px) {
+  /* En móvil estos botones viven en el dock inferior (fondo blanco) y conservan su estilo normal */
+  .btn-on-header-md { background-color: color-mix(in srgb, var(--text-primary) 14%, transparent); }
 }

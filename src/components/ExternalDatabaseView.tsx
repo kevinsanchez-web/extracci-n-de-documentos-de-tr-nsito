@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { ExternalRecord } from "../types";
-import { Database, Trash2, Check, RefreshCw, Calendar, Eye, Code } from "lucide-react";
+import { Database, Trash2, Check, RefreshCw, Code, ChevronDown, Loader2 } from "lucide-react";
 
 interface ExternalDatabaseViewProps {
   records: ExternalRecord[];
@@ -21,6 +21,8 @@ export default function ExternalDatabaseView({
   onRefresh,
 }: ExternalDatabaseViewProps) {
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  // Plegado por defecto: es el paso de verificación, no el de trabajo
+  const [open, setOpen] = useState(false);
 
   const formatDate = (isoStr: string) => {
     try {
@@ -31,136 +33,187 @@ export default function ExternalDatabaseView({
     }
   };
 
+  const typeTone = (t: string) =>
+    ["cedula", "factura", "runt", "gases", "poder"].includes(t) ? "chip tone-powder" : "chip chip-neutral";
+
   return (
-    <div className="bg-slate-900 text-slate-100 rounded-2xl p-6 border border-slate-800 shadow-xl [content-visibility:auto]">
-      <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="bg-blue-950/60 text-blue-400 p-2 rounded-xl border border-blue-900/30">
-            <Database className="w-5 h-5" />
+    <div className="card p-5 [content-visibility:auto]">
+      <div className={`flex flex-wrap items-center justify-between gap-4 ${open ? "mb-4 border-b divider pb-4" : ""}`}>
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          className="flex items-center gap-3 min-w-0 text-left rounded-2xl"
+        >
+          <div className="pastel-edge tone-sky p-2.5 rounded-2xl shrink-0">
+            <Database className="w-5 h-5" aria-hidden="true" />
           </div>
-          <div>
-            <h3 className="font-bold text-sm tracking-tight text-white">
+          <div className="min-w-0">
+            <h3 className="t-h2 text-ink flex items-center gap-2">
               SISTEMA DESTINO (PRODUCCIÓN)
+              <span className="chip chip-neutral nums">{records.length}</span>
             </h3>
-            <p className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <p className="t-caption flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
               Base de Datos Conectada vía REST API
             </p>
           </div>
-        </div>
+          <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        </button>
 
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${open ? "" : "hidden"}`}>
           <button
             onClick={onRefresh}
             disabled={isLoading}
-            className="p-1 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition-colors text-xs flex items-center gap-1 disabled:opacity-55"
+            aria-busy={isLoading}
+            className="btn btn-ghost"
             id="btn-refresh-ext-db"
           >
-            <RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />
             Actualizar
           </button>
-          
+
           {records.length > 0 && (
-            <button
-              onClick={onClear}
-              className="p-1 px-2.5 bg-slate-800/60 hover:bg-rose-950/80 hover:text-rose-400 text-slate-400 rounded-lg transition-colors text-xs flex items-center gap-1 border border-transparent hover:border-rose-900"
-              id="btn-clear-ext-db"
-            >
-              <Trash2 className="w-3 h-3" />
+            <button onClick={onClear} className="btn btn-danger" id="btn-clear-ext-db">
+              <Trash2 className="w-4 h-4" aria-hidden="true" />
               Vaciar
             </button>
           )}
         </div>
       </div>
 
+      {open && (
+      <div className="animate-screen-in">
       <div className="mb-4">
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Esta vista simula las tablas SQL del <span className="text-white font-medium">sistema de destino o base de datos externa</span>.
+        <p className="t-body text-ink-muted">
+          Esta vista simula las tablas SQL del <span className="text-ink font-semibold">sistema de destino o base de datos externa</span>.
           Al presionar "Sincronizar", los datos viajan mediante un HTTP POST real al endpoint del servidor y se ingresan en estas tablas estructuradas.
         </p>
       </div>
 
-      {records.length === 0 ? (
-        <div className="border border-dashed border-slate-800 rounded-xl p-8 text-center text-slate-500 my-4">
-          <Database className="w-8 h-8 text-slate-700 mx-auto mb-2" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Sin registros sincronizados</p>
-          <p className="text-[10px] text-slate-500">Sincronice un documento arriba para verlo reflejado aquí.</p>
+      {isLoading && records.length === 0 ? (
+        <div className="flex items-center justify-center gap-2 py-8 text-ink-muted" role="status">
+          <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+          <span className="t-body">Cargando registros...</span>
+        </div>
+      ) : records.length === 0 ? (
+        <div className="bg-app rounded-2xl p-8 text-center my-4">
+          <Database className="w-8 h-8 text-ink-muted mx-auto mb-2" aria-hidden="true" />
+          <p className="t-body font-semibold text-ink mb-1">Sin registros sincronizados</p>
+          <p className="t-caption">Sincronice un documento arriba para verlo reflejado aquí.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          <div className="max-h-[340px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-            {records.map((rec) => {
-              const isSelected = selectedRecordId === rec.id;
-              return (
-                <div
-                  key={rec.id}
-                  className={`bg-slate-950 border rounded-xl overflow-hidden transition-all ${
-                    isSelected ? "border-blue-500" : "border-slate-800 hover:border-slate-700"
-                  }`}
-                  id={`external-record-${rec.id}`}
-                >
+        <div className="space-y-4">
+          {isLoading && (
+            <div className="flex items-center gap-2 text-ink-muted" role="status">
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+              <span className="t-caption">Actualizando...</span>
+            </div>
+          )}
+
+          {/* Encabezado de tabla (solo md+) */}
+          <div className="max-h-[420px] overflow-y-auto custom-scrollbar pr-1">
+            <div
+              className="hidden md:grid grid-cols-[1.4fr_1fr_1.6fr_1.2fr_1.2fr_auto] gap-4 px-4 py-3 sticky top-0 z-10 bg-card border-b divider t-caption"
+              aria-hidden="true"
+            >
+              <span>ID</span>
+              <span>Tipo</span>
+              <span>Cliente</span>
+              <span>C.C./Ident</span>
+              <span>Chasis</span>
+              <span>Estado</span>
+            </div>
+
+            <div className="space-y-2 md:space-y-0 mt-2 md:mt-0">
+              {records.map((rec) => {
+                const isSelected = selectedRecordId === rec.id;
+                const toggle = () => setSelectedRecordId(isSelected ? null : rec.id);
+                return (
                   <div
-                    onClick={() => setSelectedRecordId(isSelected ? null : rec.id)}
-                    className="p-3.5 flex items-start justify-between gap-3 cursor-pointer"
+                    key={rec.id}
+                    className={`card-compact overflow-hidden md:rounded-none md:border-0 md:border-b md:border-b-[var(--border-subtle)] ${
+                      isSelected ? "pastel-soft tone-sky md:rounded-none" : ""
+                    }`}
+                    id={`external-record-${rec.id}`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[9px] font-mono font-bold text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={isSelected}
+                      onClick={toggle}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggle();
+                        }
+                      }}
+                      className="row-interactive p-4 min-h-12 flex flex-col gap-2 md:grid md:grid-cols-[1.4fr_1fr_1.6fr_1.2fr_1.2fr_auto] md:items-center md:gap-4 md:py-2"
+                    >
+                      <div className="flex items-center gap-2 md:contents">
+                        <span className="chip chip-neutral font-mono nums md:border-0 md:p-0 md:bg-transparent md:text-ink md:text-[0.75rem] truncate">
                           ID: {rec.id}
                         </span>
-                        <span className={`text-[9px] font-bold px-1.5 rounded uppercase ${
-                          rec.documentType === 'cedula' ? 'bg-amber-950/60 text-amber-300' :
-                          rec.documentType === 'factura' ? 'bg-emerald-950/60 text-emerald-300' :
-                          rec.documentType === 'runt' ? 'bg-blue-950/60 text-blue-300' :
-                          rec.documentType === 'gases' ? 'bg-teal-950/60 text-teal-300' :
-                          rec.documentType === 'poder' ? 'bg-purple-950/60 text-purple-300' :
-                          'bg-slate-800 text-slate-300'
-                        }`}>
+                        <span className={`${typeTone(rec.documentType)} uppercase md:justify-self-start`}>
                           {rec.documentType}
                         </span>
-                        
-                        <span className="text-[10px] text-emerald-400 font-mono font-semibold ml-auto flex items-center gap-1 bg-emerald-950/30 px-2 py-0.2 rounded">
-                          <Check className="w-2.5 h-2.5" /> API Ok
+                        <span className="chip tone-azure ml-auto md:hidden">
+                          <Check className="w-3.5 h-3.5" aria-hidden="true" /> API Ok
                         </span>
                       </div>
 
-                      <div className="text-xs font-semibold text-white truncate">
-                        Cliente: {rec.clientName}
+                      <div className="text-[0.75rem] font-semibold text-ink truncate">
+                        <span className="md:hidden">Cliente: </span>
+                        {rec.clientName}
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 mt-2 font-mono">
-                        <div>
-                          <span className="text-slate-500">C.C./Ident:</span> {rec.clientDocId}
+
+                      <div className="grid grid-cols-2 gap-2 text-[0.75rem] text-ink md:contents font-mono nums">
+                        <div className="truncate">
+                          <span className="text-ink-muted md:hidden">C.C./Ident: </span>
+                          {rec.clientDocId}
                         </div>
                         <div className="truncate">
-                          <span className="text-slate-500">Chasis:</span> {rec.vehicleChasis || "N/A"}
+                          <span className="text-ink-muted md:hidden">Chasis: </span>
+                          {rec.vehicleChasis || "N/A"}
                         </div>
                       </div>
-                    </div>
-                  </div>
 
-                  {isSelected && (
-                    <div className="bg-slate-905 border-t border-slate-800 p-3 text-xs font-mono text-slate-300 space-y-2 animate-fadeIn max-h-[220px] overflow-y-auto">
-                      <div className="flex items-center justify-between text-[10px] text-slate-500 border-b border-slate-800 pb-1 mb-1">
-                        <span>Recibido: {new Date(rec.receivedAt).toLocaleString("es-CO")}</span>
-                        <span className="text-blue-400 flex items-center gap-1">
-                          <Code className="w-3 h-3" /> mapper_schema.v1
+                      <div className="hidden md:flex items-center gap-2">
+                        <span className="chip tone-azure">
+                          <Check className="w-3.5 h-3.5" aria-hidden="true" /> API Ok
                         </span>
+                        <ChevronDown
+                          className={`w-4 h-4 text-ink-muted transition-transform ${isSelected ? "rotate-180" : ""}`}
+                          aria-hidden="true"
+                        />
                       </div>
-                      <pre className="text-[10px] text-blue-300 overflow-x-auto whitespace-pre-wrap leading-tight bg-slate-950 p-2.5 rounded-lg border border-slate-800">
-                        {JSON.stringify(rec.details, null, 2)}
-                      </pre>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+
+                    {isSelected && (
+                      <div className="bg-card border-t divider p-4 text-[0.75rem] space-y-3 animate-fadeIn max-h-[260px] overflow-y-auto custom-scrollbar">
+                        <div className="flex flex-wrap items-center justify-between gap-2 t-caption pb-2 border-b divider">
+                          <span className="nums">Recibido: {new Date(rec.receivedAt).toLocaleString("es-CO")}</span>
+                          <span className="chip tone-powder">
+                            <Code className="w-3.5 h-3.5" aria-hidden="true" /> mapper_schema.v1
+                          </span>
+                        </div>
+                        <pre className="card-compact bg-app text-ink font-mono text-[0.6875rem] overflow-x-auto whitespace-pre-wrap break-words leading-snug p-4">
+                          {JSON.stringify(rec.details, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="text-[10px] text-slate-500 text-center font-mono">
+          <div className="t-caption text-center nums">
             Mostrando {records.length} registro(s) persistido(s) en la DB del otro sistema.
           </div>
         </div>
+      )}
+      </div>
       )}
     </div>
   );
