@@ -118,10 +118,10 @@ export default function ActiveDocumentDetail({
     <div className="card flex flex-col h-full overflow-clip">
 
       {/* PESTAÑAS POR TIPO (dentro de la tarjeta) */}
-      {tabs && <div className="px-5 pt-4 shrink-0">{tabs}</div>}
+      {tabs && <div className="px-5 pt-4 pb-1 shrink-0">{tabs}</div>}
 
       {/* BANNER SUPERIOR */}
-      <div className="px-5 py-4 border-b divider">
+      <div className="px-5 pt-5 pb-4 border-b divider">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -134,10 +134,10 @@ export default function ActiveDocumentDetail({
                 </span>
               )}
             </div>
-            <p className="t-body font-semibold text-ink truncate" title={document.fileName}>
+            <p className="t-h1 text-ink truncate" title={document.fileName}>
               {document.fileName}
             </p>
-            <p className="t-caption italic line-clamp-1">"{document.summary}"</p>
+            <p className="t-caption italic line-clamp-2 mt-0.5">"{document.summary}"</p>
           </div>
 
           {/* Confianza IA */}
@@ -146,8 +146,11 @@ export default function ActiveDocumentDetail({
               Confianza IA
             </div>
             <div className="flex items-center gap-2 sm:justify-end">
-              <div className="w-20 h-2 bg-app rounded-full overflow-hidden">
-                <div className="h-full bg-pastel-sky" style={{ width: `${confidence}%` }} />
+              <div className="w-24 h-2.5 bg-app rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${confidence >= 90 ? "bg-pastel-azure" : confidence >= 75 ? "bg-pastel-butter" : "bg-pastel-coral"}`}
+                  style={{ width: `${confidence}%` }}
+                />
               </div>
               <span className="t-h2 text-ink nums">
                 {confidence}%
@@ -456,7 +459,7 @@ export default function ActiveDocumentDetail({
       </div>
 
       {/* BARRA DE ACCIONES */}
-      <div className="shrink-0 bg-card border-t divider p-5">
+      <div className="shrink-0 bg-card border-t divider p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:p-5 sticky bottom-0 sm:static z-10">
         {successMsg && (
           <div className="flex items-center gap-2 pastel-soft tone-azure t-caption text-ink px-3 py-2 mb-4" role="status">
             <Check className="w-4 h-4 shrink-0" />
@@ -464,9 +467,9 @@ export default function ActiveDocumentDetail({
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap gap-2">
           {confirmingDelete ? (
-            <div className="flex flex-wrap items-center gap-2 pastel-soft tone-coral p-2" role="alert">
+            <div className="order-first sm:order-none basis-full sm:basis-auto flex flex-wrap items-center gap-2 pastel-soft tone-coral p-2" role="alert">
               <span className="t-caption text-ink px-2">¿Eliminar este documento de forma permanente?</span>
               <button
                 onClick={() => { setConfirmingDelete(false); onDeleteDocument(document.id); }}
@@ -483,41 +486,43 @@ export default function ActiveDocumentDetail({
           ) : (
             <button
               onClick={() => setConfirmingDelete(true)}
-              className="btn btn-danger"
+              className="btn btn-danger shrink-0 min-w-11 sm:min-w-0 !px-0 sm:!px-5"
               title="Eliminar documento permanentemente"
+              aria-label="Eliminar documento"
             >
               <Trash2 className="w-4 h-4" />
-              Eliminar
+              <span className="hidden sm:inline">Eliminar</span>
             </button>
           )}
 
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="btn btn-ghost"
+            className="btn btn-ghost shrink-0 min-w-11 sm:min-w-0 !px-0 sm:!px-5"
             id="btn-save-extracted"
+            aria-label={isSaving ? "Guardando" : "Guardar cambios"}
           >
             <Save className={`w-4 h-4 ${isSaving ? "animate-spin" : ""}`} />
-            {isSaving ? "Guardando..." : "Guardar"}
+            <span className="hidden sm:inline">{isSaving ? "Guardando..." : "Guardar"}</span>
           </button>
 
           <button
             onClick={() => onSyncDocument(document.id)}
             disabled={isSyncing}
-            className={`btn flex-1 ${document.syncStatus === "success" ? "btn-info" : "btn-primary"}`}
+            className={`btn flex-1 min-w-0 ${document.syncStatus === "success" ? "btn-info" : "btn-primary"}`}
             id="btn-sync-document"
           >
             {isSyncing ? (
-              <><RefreshCw className="w-4 h-4 animate-spin" /> Sincronizando…</>
+              <><RefreshCw className="w-4 h-4 animate-spin shrink-0" /> <span className="truncate">Sincronizando…</span></>
             ) : document.syncStatus === "success" ? (
-              <><Check className="w-4 h-4" /> Sincronizado — Re-enviar</>
+              <><Check className="w-4 h-4 shrink-0" /> <span className="truncate"><span className="sm:hidden">Re-enviar</span><span className="hidden sm:inline">Sincronizado — Re-enviar</span></span></>
             ) : (
-              <><RefreshCw className="w-4 h-4" /> Sincronizar vía API</>
+              <><RefreshCw className="w-4 h-4 shrink-0" /> <span className="truncate"><span className="sm:hidden">Sincronizar</span><span className="hidden sm:inline">Sincronizar vía API</span></span></>
             )}
           </button>
         </div>
 
-        <p className="t-caption text-center mt-2">
+        <p className="t-caption text-center mt-2 hidden sm:block">
           Destino: <code className="font-mono text-ink">{apiUrl.length > 40 ? apiUrl.slice(0, 40) + "…" : apiUrl}</code>
         </p>
       </div>

@@ -291,37 +291,37 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col font-sans antialiased bg-app text-ink transition-colors duration-200">
 
-      {/* HEADER DE LA APLICACIÓN (barra translúcida; en móvil las acciones pasan al dock inferior) */}
-      <header className="sticky top-0 z-40 safe-top px-4 sm:px-5 py-3">
+      {/* HEADER (fijo arriba): una sola fila en móvil con el selector de proveedor incluido */}
+      <header className="sticky top-0 z-40 safe-top px-3 sm:px-5 py-2.5 md:py-3">
         <div className="glass-layer" aria-hidden="true" />
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="tone-powder pastel-edge w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 shrink-0 rounded-2xl flex items-center justify-center">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-3 min-w-0 md:shrink">
+            <div className="tone-powder pastel-edge w-9 h-9 shrink-0 rounded-2xl flex items-center justify-center">
               <Cpu className="w-5 h-5" aria-hidden="true" />
             </div>
-            <div className="min-w-0">
+            <div className="sr-only md:not-sr-only min-w-0">
               <h1 className="t-h2 truncate" id="app-title-main">
                 Scanner & Sincronizador · Trámites de Tránsito
               </h1>
-              <p className="t-caption header-sub hidden sm:block truncate">
+              <p className="t-caption header-sub hidden lg:block truncate">
                 Cédulas · Facturas · RUNT · Gases · Poderes — REST API v1.0
               </p>
             </div>
           </div>
 
-          {/* Acciones: dock inferior en móvil, barra superior desde md */}
-          <div className="dock md:flex-1">
-            {/* SWITCH DE MOTOR DE IA: GEMINI (NUBE) O JETSON (OCR LOCAL) */}
+          {/* Acciones */}
+          <div className="flex flex-1 min-w-0 flex-wrap md:flex-nowrap items-center gap-2 md:justify-end">
+            {/* SWITCH DE PROVEEDOR: GEMINI (NUBE) O LOCAL (OCR EN EL EQUIPO) */}
             <div
-              className="card-compact inline-flex items-center gap-1 p-1"
+              className="card-compact flex flex-1 basis-32 md:basis-auto md:flex-none items-center gap-1 p-1 min-w-fit"
               id="ai-engine-switch"
               role="group"
-              aria-label="Motor de análisis de documentos"
+              aria-label="Proveedor de análisis de documentos"
             >
               <button
                 onClick={() => changeAiEngine("gemini")}
                 aria-pressed={aiEngine === "gemini"}
-                className="btn btn-ghost !rounded-xl !px-3"
+                className="btn btn-ghost !rounded-xl !px-2.5 md:!px-3 flex-1 md:flex-none"
               >
                 {aiEngine === "gemini" && <Check className="w-4 h-4" aria-hidden="true" />}
                 Gemini
@@ -329,7 +329,7 @@ export default function App() {
               <button
                 onClick={() => changeAiEngine("jetson")}
                 aria-pressed={aiEngine === "jetson"}
-                className="btn btn-ghost !rounded-xl !px-3"
+                className="btn btn-ghost !rounded-xl !px-2.5 md:!px-3 flex-1 md:flex-none"
               >
                 {aiEngine === "jetson" && <Check className="w-4 h-4" aria-hidden="true" />}
                 Local
@@ -340,7 +340,7 @@ export default function App() {
               href="/api-docs"
               target="_blank"
               rel="noreferrer"
-              className="btn btn-ghost btn-on-header-md min-w-8 pointer-coarse:min-w-11 !px-3 md:!px-5"
+              className="btn btn-ghost btn-on-header min-w-8 pointer-coarse:min-w-11 shrink-0 !px-3 md:!px-5"
               aria-label="API Docs"
             >
               <ExternalLink className="w-4 h-4" aria-hidden="true" />
@@ -349,19 +349,17 @@ export default function App() {
 
             <button
               onClick={() => setShowHelpModal(true)}
-              className="btn btn-secondary min-w-8 pointer-coarse:min-w-11 !px-3 md:!px-5"
+              className="btn btn-secondary min-w-8 pointer-coarse:min-w-11 shrink-0 !px-3 md:!px-5"
               id="btn-case-guide"
               aria-label="Guía del Caso"
             >
               <BookOpen className="w-4 h-4" aria-hidden="true" />
               <span className="hidden md:inline">Guía del Caso</span>
             </button>
-          </div>
 
-          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => { const next = !isDark; setIsDark(next); localStorage.setItem("theme", next ? "dark" : "light"); }}
-              className="btn btn-ghost btn-icon btn-on-header"
+              className="btn btn-ghost btn-icon btn-on-header shrink-0"
               title={isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
               aria-label={isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
               id="btn-toggle-theme"
@@ -404,7 +402,7 @@ export default function App() {
 
       {/* CUERPO PRINCIPAL. Orden de trabajo: subir → revisar el documento → historial → verificar destino.
           Móvil: carga, detalle, historial (plegado), destino (plegado). Escritorio: carga arriba, historial y detalle lado a lado. */}
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-5 lg:p-8 pb-28 md:pb-8 flex flex-col gap-4 md:gap-5">
+      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-5 lg:p-8 pb-8 flex flex-col gap-4 md:gap-5">
 
         {/* 1. CARGA: barra compacta con "Nuevo Trámite" */}
         <DocumentDropzone
@@ -575,7 +573,7 @@ export default function App() {
       )}
 
       {/* FOOTER */}
-      <footer className="bg-card border-t divider py-6 mt-auto pb-28 md:pb-6">
+      <footer className="bg-card border-t divider py-6 mt-auto">
         <div className="max-w-7xl mx-auto px-5 flex flex-col items-center gap-1 text-center">
           <span className="t-h2 uppercase tracking-tight">DivergencyAI</span>
           <span className="t-caption">Todos los derechos reservados © 2026</span>

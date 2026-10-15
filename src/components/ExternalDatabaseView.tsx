@@ -50,12 +50,12 @@ export default function ExternalDatabaseView({
           </div>
           <div className="min-w-0">
             <h3 className="t-h2 text-ink flex items-center gap-2">
-              SISTEMA DESTINO (PRODUCCIÓN)
+              Sistema destino (simulado)
               <span className="chip chip-neutral nums">{records.length}</span>
             </h3>
             <p className="t-caption flex items-center gap-1.5">
               <Check className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-              Base de Datos Conectada vía REST API
+              Registros recibidos al sincronizar
             </p>
           </div>
           <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
@@ -114,7 +114,7 @@ export default function ExternalDatabaseView({
           {/* Encabezado de tabla (solo md+) */}
           <div className="max-h-[420px] overflow-y-auto custom-scrollbar pr-1">
             <div
-              className="hidden md:grid grid-cols-[1.4fr_1fr_1.6fr_1.2fr_1.2fr_auto] gap-4 px-4 py-3 sticky top-0 z-10 bg-card border-b divider t-caption"
+              className="hidden md:grid grid-cols-[1.4fr_1fr_1.6fr_1.2fr_1.2fr_6.5rem] gap-4 px-4 py-3 sticky top-0 z-10 bg-card border-b divider t-caption"
               aria-hidden="true"
             >
               <span>ID</span>
@@ -148,7 +148,7 @@ export default function ExternalDatabaseView({
                           toggle();
                         }
                       }}
-                      className="row-interactive p-4 min-h-12 flex flex-col gap-2 md:grid md:grid-cols-[1.4fr_1fr_1.6fr_1.2fr_1.2fr_auto] md:items-center md:gap-4 md:py-2"
+                      className="row-interactive p-4 min-h-12 flex flex-col gap-2 md:grid md:grid-cols-[1.4fr_1fr_1.6fr_1.2fr_1.2fr_6.5rem] md:items-center md:gap-4 md:py-2"
                     >
                       <div className="flex items-center gap-2 md:contents">
                         <span className="chip chip-neutral font-mono nums md:border-0 md:p-0 md:bg-transparent md:text-ink md:text-[0.75rem] truncate">

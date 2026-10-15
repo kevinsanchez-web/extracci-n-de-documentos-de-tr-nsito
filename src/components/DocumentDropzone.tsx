@@ -104,7 +104,7 @@ export default function DocumentDropzone({ onAnalyze, isAnalyzing, onShowHelp, o
             )}
           </div>
           <div className="min-w-0">
-            <p className="t-body font-medium text-ink truncate" role={isAnalyzing ? "status" : undefined}>
+            <p className="t-body font-medium text-ink md:truncate leading-snug" role={isAnalyzing ? "status" : undefined}>
               {isAnalyzing ? (
                 "Analizando documento…"
               ) : (
@@ -114,11 +114,11 @@ export default function DocumentDropzone({ onAnalyze, isAnalyzing, onShowHelp, o
                 </>
               )}
             </p>
-            <p className="t-caption truncate">Imágenes (JPG, PNG, WEBP) o PDF de trámites</p>
+            <p className="t-caption md:truncate leading-snug">Imágenes (JPG, PNG, WEBP) o PDF de trámites</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 md:shrink-0">
           <button onClick={onShowHelp} className="btn btn-ghost flex-1 md:flex-none">
             <HelpCircle className="w-4 h-4" aria-hidden="true" />
             Guía de Archivos

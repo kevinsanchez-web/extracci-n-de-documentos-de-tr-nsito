@@ -123,6 +123,10 @@
   --color-line-soft: var(--border-subtle);
 }
 
+/* Mis estilos van en la capa `components`: así las clases utilitarias de Tailwind
+   (md:hidden, md:p-0, rounded-*, etc.) pueden sobrescribirlos. */
+@layer components {
+
 /* ==========================================================================
    Base
    ========================================================================== */
@@ -130,13 +134,15 @@
 html {
   background-color: var(--bg-app);
   color: var(--text-primary);
+  /* Escala con el tamaño de letra del sistema (ver src/textScale.ts); por defecto 16px */
+  font-size: calc(16px * var(--text-scale, 1));
 }
 body {
   margin: 0;
   background-color: var(--bg-app);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -265,7 +271,7 @@ a:focus-visible {
 @media (pointer: coarse) {
   .btn { min-height: 44px; }
   .btn-icon { min-width: 44px; }
-  .field { min-height: 44px; font-size: 16px; }
+  .field { min-height: 44px; font-size: 1rem; }
 }
 
 .btn-primary   { --c: var(--pastel-azure); }
@@ -410,34 +416,7 @@ a:focus-visible {
   .modal-panel-xl { max-width: 56rem; }
 }
 
-/* ==========================================================================
-   Navegación móvil (dock inferior) y safe areas
-   ========================================================================== */
-
-.dock {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 45;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
-  background-color: var(--surface-card);
-  border-top: 1px solid var(--border-subtle);
-}
-@media (min-width: 768px) {
-  .dock {
-    position: static;
-    z-index: auto;
-    padding: 0;
-    background: none;
-    border: 0;
-    justify-content: flex-end;
-  }
-}
+/* Safe area superior (notch) */
 .safe-top { padding-top: env(safe-area-inset-top, 0px); }
 
 /* ==========================================================================
@@ -462,7 +441,9 @@ a:focus-visible {
    ========================================================================== */
 .header-sub { color: color-mix(in srgb, var(--text-primary) 80%, transparent); }
 .btn-on-header { background-color: color-mix(in srgb, var(--text-primary) 14%, transparent); }
-@media (min-width: 768px) {
-  /* En móvil estos botones viven en el dock inferior (fondo blanco) y conservan su estilo normal */
-  .btn-on-header-md { background-color: color-mix(in srgb, var(--text-primary) 14%, transparent); }
-}
+
+/* Scroll horizontal sin barra visible (pestañas en móvil) */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+} /* fin @layer components */
