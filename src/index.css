@@ -19,7 +19,16 @@
   --text-secondary: #4A5A74;
   --border-subtle: rgba(15, 40, 90, 0.08);
   --border-nintendo: rgba(15, 40, 90, 0.18);
-  --focus-ring: #1F5FD0;
+  --focus-ring: var(--accent);
+
+  /* Único color de acento (acción principal, selección, foco) */
+  --accent: #3A67A6;
+  --accent-fg: #FFFFFF;
+  --accent-ink: #2D5287;
+  --accent-soft: color-mix(in srgb, var(--accent) 11%, var(--surface-card));
+  /* Tintas de estado: solo para iconos y textos pequeños */
+  --danger-ink: #A93A44;
+  --warn-ink: #8A6100;
 
   /* Pasteles (siempre relleno, nunca color de texto) */
   --pastel-azure: #86A9D4;
@@ -39,9 +48,9 @@
   --shadow-plop: 0 4px 12px rgba(0, 0, 0, 0.08);
   --glass-blur: blur(20px) saturate(180%);
 
-  /* Barra superior: bloque azul propio, distinto del fondo de la página */
-  --header-bg: #6B8DB7;
-  --header-shadow: 0 2px 14px rgba(15, 40, 90, 0.22);
+  /* Barra superior: mismo color que las tarjetas (Historial, Detalle); la separa del fondo una línea y una sombra suave */
+  --header-bg: var(--surface-card);
+  --header-shadow: 0 1px 0 var(--border-subtle), 0 2px 10px rgba(15, 40, 90, 0.08);
 
   /* Altura fija de los paneles Historial y Detalle (escritorio): depende de la pantalla, no del contenido */
   --panel-h: clamp(30rem, calc(100vh - 14rem), 52rem);
@@ -66,11 +75,18 @@
   --border-nintendo: rgba(140, 180, 255, 0.22);
   --focus-ring: #8AB4FF;
 
+  --accent: #7FA6DC;
+  --accent-fg: #0B1426;
+  --accent-ink: #A9C6EC;
+  --accent-soft: color-mix(in srgb, var(--accent) 17%, var(--surface-card));
+  --danger-ink: #F0A3A9;
+  --warn-ink: #E6C77A;
+
   --edge-mix: #fff;
   --edge-pct: 70%;
 
-  --header-bg: #26405E;
-  --header-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+  --header-bg: var(--surface-card);
+  --header-shadow: 0 1px 0 var(--border-subtle), 0 2px 10px rgba(0, 0, 0, 0.45);
 
   --shadow-card: none;
   --shadow-plop: 0 4px 12px rgba(0, 0, 0, 0.5);
@@ -188,23 +204,26 @@ h1, h2, h3, h4 { color: var(--text-primary); }
    Pastel: tonos y borde obligatorio
    ========================================================================== */
 
-.tone-azure     { --c: var(--pastel-azure); }
-.tone-butter   { --c: var(--pastel-butter); }
-.tone-powder { --c: var(--pastel-powder); }
-.tone-sky      { --c: var(--pastel-sky); }
-.tone-coral    { --c: var(--pastel-coral); }
+.tone-azure  { --c: var(--pastel-azure);  --c-ink: var(--accent-ink);    --soft-c: var(--accent); --bar: var(--accent); }
+.tone-sky    { --c: var(--pastel-sky);    --c-ink: var(--accent-ink);    --soft-c: var(--accent); --bar: var(--accent); }
+.tone-powder { --c: var(--pastel-powder); --c-ink: var(--text-secondary); }
+.tone-butter { --c: var(--pastel-butter); --c-ink: var(--warn-ink); }
+.tone-coral  { --c: var(--pastel-coral);  --c-ink: var(--danger-ink); }
 
+/* Avatares, logo e iconos en recuadro: siempre en el acento suave (monocromo) */
 .pastel-edge {
-  background-color: var(--c);
-  color: var(--on-pastel);
+  background-color: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 /* Versión suave (fondo de aviso/selección), sin relleno saturado */
 .pastel-soft {
-  background-color: color-mix(in srgb, var(--c) 28%, var(--surface-card));
+  background-color: color-mix(in srgb, var(--soft-c, var(--c)) 12%, var(--surface-card));
   color: var(--text-primary);
   border-radius: var(--radius-control);
+  box-shadow: inset 3px 0 0 var(--bar, var(--c));
 }
+.pastel-soft.row-interactive:hover { box-shadow: inset 3px 0 0 var(--bar, var(--c)), var(--shadow-plop); }
 
 /* ==========================================================================
    Efecto "plop" (el orden importa: hover → active)
@@ -274,15 +293,12 @@ a:focus-visible {
   .field { min-height: 44px; font-size: 1rem; }
 }
 
-.btn-primary   { --c: var(--pastel-azure); }
-.btn-secondary { --c: var(--pastel-powder); }
-.btn-info      { --c: var(--pastel-sky); }
-.btn-warning   { --c: var(--pastel-butter); }
-.btn-danger    { --c: var(--pastel-coral); }
-:is(.btn-primary, .btn-secondary, .btn-info, .btn-warning, .btn-danger) {
-  background-color: var(--c);
-  color: var(--on-pastel);
-}
+/* Un solo botón sólido por pantalla (acción principal); el resto son tenues */
+.btn-primary   { background-color: var(--accent); color: var(--accent-fg); }
+.btn-info      { background-color: var(--accent-soft); color: var(--accent-ink); }
+.btn-secondary { background-color: color-mix(in srgb, var(--text-primary) 8%, transparent); color: var(--text-primary); }
+.btn-danger    { background-color: color-mix(in srgb, var(--pastel-coral) 20%, var(--surface-card)); color: var(--danger-ink); }
+.btn-warning   { background-color: color-mix(in srgb, var(--pastel-butter) 28%, var(--surface-card)); color: var(--warn-ink); }
 
 /* Neutro sin borde (acciones terciarias) */
 .btn-ghost {
@@ -291,8 +307,8 @@ a:focus-visible {
 }
 .btn-ghost[aria-pressed="true"],
 .btn-ghost[aria-selected="true"] {
-  --c: var(--pastel-sky);
-  background-color: color-mix(in srgb, var(--c) 45%, var(--surface-card));
+  background-color: var(--accent-soft);
+  color: var(--accent-ink);
 }
 
 /* Chips y etiquetas */
@@ -306,9 +322,10 @@ a:focus-visible {
   line-height: 1.4;
   font-weight: 600;
   letter-spacing: 0.01em;
-  background-color: var(--c, var(--surface-card));
-  color: var(--on-pastel);
+  background-color: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  color: var(--text-primary);
 }
+.chip svg { color: var(--c-ink, currentColor); }
 .chip-neutral {
   --c: transparent;
   background-color: color-mix(in srgb, var(--text-primary) 6%, transparent);
@@ -371,7 +388,7 @@ a:focus-visible {
   transition: background-color 150ms ease, transform 100ms ease;
 }
 .pill-option:hover, .pill-option:focus-visible { background-color: color-mix(in srgb, var(--text-primary) 7%, transparent); }
-.pill-option[aria-selected="true"] { background-color: color-mix(in srgb, var(--pastel-sky) 55%, var(--surface-card)); font-weight: 600; }
+.pill-option[aria-selected="true"] { background-color: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
 .pill-option:active { transform: scale(0.97); }
 @media (pointer: coarse) { .pill-option { min-height: 44px; } }
 @media (prefers-reduced-motion: reduce) { .pill-option:active { transform: none; } }
@@ -381,7 +398,7 @@ a:focus-visible {
   background-color: color-mix(in srgb, var(--pastel-coral) 22%, var(--surface-card));
 }
 /* Valor detectado automáticamente (OCR) */
-.field-detected { background-color: color-mix(in srgb, var(--pastel-sky) 22%, var(--surface-card)); }
+.field-detected { background-color: var(--accent-soft); }
 .field-error-msg { margin-top: 0.25rem; font-size: 0.6875rem; font-weight: 500; color: var(--text-primary); display: flex; gap: 0.375rem; align-items: center; }
 
 /* ==========================================================================
@@ -437,10 +454,27 @@ a:focus-visible {
 }
 
 /* ==========================================================================
-   Elementos sobre la barra superior azul
+   Elementos sobre la barra superior
    ========================================================================== */
 .header-sub { color: color-mix(in srgb, var(--text-primary) 80%, transparent); }
-.btn-on-header { background-color: color-mix(in srgb, var(--text-primary) 14%, transparent); }
+.btn-on-header { background-color: color-mix(in srgb, var(--text-primary) 8%, transparent); }
+
+/* Control segmentado (selector de proveedor): pista tenue y pieza elevada para la opción activa */
+.seg { display: flex; gap: 2px; padding: 3px; border-radius: 9999px; background-color: color-mix(in srgb, var(--text-primary) 7%, transparent); }
+.seg-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem;
+  min-height: 30px; padding: 0 0.875rem; border-radius: 9999px;
+  font-size: 0.75rem; font-weight: 600; line-height: 1.2; white-space: nowrap;
+  color: var(--text-secondary); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color 200ms ease, color 200ms ease, box-shadow 200ms ease;
+}
+.seg-btn:hover { color: var(--text-primary); }
+.seg-btn[aria-pressed="true"] { background-color: var(--surface-card); color: var(--accent-ink); box-shadow: 0 1px 3px rgba(15, 40, 90, 0.18); }
+.dark .seg-btn[aria-pressed="true"] { background-color: color-mix(in srgb, var(--text-primary) 14%, var(--surface-card)); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
+.seg-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+@media (pointer: coarse) { .seg-btn { min-height: 40px; } }
+
+h1, h2, h3 { letter-spacing: -0.01em; }
 
 /* Scroll horizontal sin barra visible (pestañas en móvil) */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }

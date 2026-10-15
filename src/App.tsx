@@ -34,13 +34,14 @@ export default function App() {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [isDark, setIsDark] = useState(() => localStorage.getItem("theme") === "dark");
 
-  // Motor de IA seleccionado: Gemini (nube) o Local (OCR en el equipo; internamente "jetson")
+  // Proveedor de análisis: "jetson" = API de OCR propia (se muestra como "OCR"), "gemini" = IA en la nube.
+  // Por defecto OCR. La clave es nueva (v2) para que todos arranquen con el nuevo valor por defecto.
   const [aiEngine, setAiEngine] = useState<"gemini" | "jetson">(
-    () => localStorage.getItem("aiEngine") === "jetson" ? "jetson" : "gemini"
+    () => localStorage.getItem("aiEngineV2") === "gemini" ? "gemini" : "jetson"
   );
   const changeAiEngine = (engine: "gemini" | "jetson") => {
     setAiEngine(engine);
-    localStorage.setItem("aiEngine", engine);
+    localStorage.setItem("aiEngineV2", engine);
   };
 
   // Endpoint configurable de API
@@ -112,7 +113,7 @@ export default function App() {
 
     const isGemini = aiEngine === "gemini";
     const endpoint = isGemini ? "/api/documents/analyze" : "/api/documents/analyze-jetson";
-    const engineLabel = isGemini ? "Gemini" : "Local (OCR)";
+    const engineLabel = isGemini ? "Gemini" : "OCR";
 
     // Simular pequeños pasos de progreso visuales para una experiencia excelente de usuario
     const steps = isGemini
@@ -124,7 +125,7 @@ export default function App() {
         ]
       : [
           `Subiendo archivo y enviándolo a ${engineLabel}...`,
-          "Ejecutando OCR local y detectando maquetación...",
+          "Ejecutando OCR y detectando maquetación...",
           "Clasificando formulario y extrayendo campos...",
           "Formateando esquema JSON listo para sincronizar vía API...",
         ];
@@ -158,7 +159,7 @@ export default function App() {
         const result = await res.json();
         newRecords = Array.isArray(result) ? result : [result];
       } else {
-        // OCR local: trabajo asíncrono con el avance real de la lectura (en vez de los mensajes simulados)
+        // OCR: trabajo asíncrono con el avance real de la lectura (en vez de los mensajes simulados)
         clearInterval(interval);
         newRecords = await analyzeWithJetson(base64, mimeType, fileName, setAnalyzeMsg);
       }
@@ -313,7 +314,7 @@ export default function App() {
           <div className="flex flex-1 min-w-0 flex-wrap md:flex-nowrap items-center gap-2 md:justify-end">
             {/* SWITCH DE PROVEEDOR: GEMINI (NUBE) O LOCAL (OCR EN EL EQUIPO) */}
             <div
-              className="card-compact flex flex-1 basis-32 md:basis-auto md:flex-none items-center gap-1 p-1 min-w-fit"
+              className="seg flex-1 basis-32 md:basis-auto md:flex-none min-w-fit"
               id="ai-engine-switch"
               role="group"
               aria-label="Proveedor de análisis de documentos"
@@ -321,18 +322,18 @@ export default function App() {
               <button
                 onClick={() => changeAiEngine("gemini")}
                 aria-pressed={aiEngine === "gemini"}
-                className="btn btn-ghost !rounded-xl !px-2.5 md:!px-3 flex-1 md:flex-none"
+                title="Gemini: análisis con IA en la nube"
+                className="seg-btn flex-1 md:flex-none"
               >
-                {aiEngine === "gemini" && <Check className="w-4 h-4" aria-hidden="true" />}
                 Gemini
               </button>
               <button
                 onClick={() => changeAiEngine("jetson")}
                 aria-pressed={aiEngine === "jetson"}
-                className="btn btn-ghost !rounded-xl !px-2.5 md:!px-3 flex-1 md:flex-none"
+                title="OCR: API de reconocimiento de texto propia"
+                className="seg-btn flex-1 md:flex-none"
               >
-                {aiEngine === "jetson" && <Check className="w-4 h-4" aria-hidden="true" />}
-                Local
+                OCR
               </button>
             </div>
 
@@ -370,7 +371,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* PROCESAMIENTO EN CURSO (Gemini / Local) */}
+      {/* PROCESAMIENTO EN CURSO (Gemini / OCR) */}
       {isAnalyzing && (
         <div className="max-w-7xl mx-auto w-full px-4 sm:px-5 lg:px-8 pt-4 animate-screen-in" role="status" aria-live="polite" aria-busy="true">
           <div className="pastel-soft tone-sky p-4 flex items-center gap-3">

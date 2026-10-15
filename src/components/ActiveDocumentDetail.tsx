@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { DocumentRecord } from "../types";
 import PillSelect from "./PillSelect";
+import { isReviewed, markReviewed } from "../reviewedStore";
 import {
   FileText, Check, Save, RefreshCw, Smartphone,
   Mail, MapPin, User, Hash, Calendar, DollarSign,
@@ -66,6 +67,9 @@ export default function ActiveDocumentDetail({
   const [isSaving, setIsSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   useEffect(() => { setConfirmingDelete(false); }, [document?.id]);
+  // Marca visual de "revisado manualmente" (se guarda en este navegador)
+  const [reviewed, setReviewed] = useState(false);
+  useEffect(() => { setReviewed(document ? isReviewed(document.id) : false); }, [document?.id]);
 
   useEffect(() => {
     if (document) {
@@ -94,7 +98,10 @@ export default function ActiveDocumentDetail({
     label: document.documentType,
   };
 
-  const confidence = Math.round(document.confidence * 100);
+  // Nunca se muestra 100%: ningún modelo es infalible y un 100% puede llevar a omitir la revisión.
+  const MAX_CONFIDENCE = 99;
+  const rawConfidence = Math.round(document.confidence * 100);
+  const confidence = Number.isFinite(rawConfidence) ? Math.max(0, Math.min(MAX_CONFIDENCE, rawConfidence)) : 0;
   const confLabel = confidence >= 90 ? "Alta" : confidence >= 75 ? "Media" : "Baja";
 
   const set = (key: string, val: any) => setEditedData((p: any) => ({ ...p, [key]: val }));
@@ -104,7 +111,12 @@ export default function ActiveDocumentDetail({
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      const changed = JSON.stringify(editedData) !== JSON.stringify(document.extractedData);
       await onUpdateDocumentData(document.id, editedData);
+      if (changed) {
+        markReviewed(document.id);
+        setReviewed(true);
+      }
       setSuccessMsg("Cambios guardados en Firestore");
     } catch {
       setSuccessMsg("Error al guardar");
@@ -141,14 +153,17 @@ export default function ActiveDocumentDetail({
           </div>
 
           {/* Confianza IA */}
-          <div className="shrink-0 sm:text-right">
+          <div
+            className="shrink-0 sm:text-right"
+            title="Porcentaje del análisis automático: mide cuántos campos clave se encontraron y qué tan bien se leyó, no que los datos sean correctos."
+          >
             <div className="t-caption uppercase tracking-wider mb-1">
               Confianza IA
             </div>
             <div className="flex items-center gap-2 sm:justify-end">
               <div className="w-24 h-2.5 bg-app rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full ${confidence >= 90 ? "bg-pastel-azure" : confidence >= 75 ? "bg-pastel-butter" : "bg-pastel-coral"}`}
+                  className={`h-full rounded-full ${confidence >= 90 ? "bg-[var(--accent)]" : confidence >= 75 ? "bg-pastel-butter" : "bg-pastel-coral"}`}
                   style={{ width: `${confidence}%` }}
                 />
               </div>
@@ -157,6 +172,13 @@ export default function ActiveDocumentDetail({
               </span>
             </div>
             <div className="t-caption mt-0.5">{confLabel} precisión</div>
+            {reviewed && (
+              <div className="mt-1.5 sm:flex sm:justify-end">
+                <span className="chip tone-azure" title="Un usuario corrigió o completó estos datos después del análisis automático">
+                  <Check className="w-3.5 h-3.5" aria-hidden="true" /> Revisado manualmente
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
