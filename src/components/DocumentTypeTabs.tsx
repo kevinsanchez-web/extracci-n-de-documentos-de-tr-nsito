@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Check } from "lucide-react";
 import { DocumentRecord } from "../types";
 
 interface DocumentTypeTabsProps {
@@ -29,22 +28,20 @@ export default function DocumentTypeTabs({ documents, activeType, onSelect }: Do
   }, {} as Record<string, number>);
 
   return (
-    <div role="tablist" aria-label="Documentos del trámite" className="flex gap-2 overflow-x-auto md:flex-wrap md:overflow-visible no-scrollbar -mx-5 px-5 md:mx-0 md:px-0 pb-1">
+    <div role="tablist" aria-label="Documentos del trámite" className="tabs no-scrollbar">
       {TABS.map((t) => {
         const count = counts[t.type] ?? 0;
-        const selected = activeType === t.type;
         return (
           <button
             key={t.type}
             role="tab"
-            aria-selected={selected}
+            aria-selected={activeType === t.type}
             disabled={count === 0}
             onClick={() => onSelect(t.type)}
-            className="btn btn-ghost shrink-0"
+            className="tab"
           >
-            {selected && <Check className="w-4 h-4" aria-hidden="true" />}
             {t.label}
-            {count > 0 && <span className="t-caption nums">{count}</span>}
+            {count > 1 && <span className="t-caption nums">{count}</span>}
           </button>
         );
       })}

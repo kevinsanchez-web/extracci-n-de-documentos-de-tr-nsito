@@ -14,8 +14,7 @@ import NetworkLogModal from "./components/NetworkLogModal";
 import { analyzeWithJetson } from "./lib/jetsonClient";
 import {
   Cpu, BookOpen, Clock, Info, ExternalLink,
-  RefreshCw, Moon, Sun,
-  TriangleAlert, Check, X
+  Moon, Sun, TriangleAlert, X
 } from "lucide-react";
 
 export default function App() {
@@ -56,6 +55,8 @@ export default function App() {
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
 
   const activeDoc = documents.find((d) => d.id === activeDocId) || null;
+  // El historial cuenta trámites (clientes), no archivos: un trámite trae varios documentos
+  const tramiteCount = new Set(documents.map((d) => d.tramiteId || d.id)).size;
 
   // Documentos del trámite activo (para las pestañas por tipo)
   const activeTramiteKey = activeDoc ? (activeDoc.tramiteId || activeDoc.id) : null;
@@ -292,97 +293,60 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col font-sans antialiased bg-app text-ink transition-colors duration-200">
 
-      {/* HEADER (fijo arriba): una sola fila en móvil con el selector de proveedor incluido */}
-      <header className="sticky top-0 z-40 safe-top px-3 sm:px-5 py-2.5 md:py-3">
+      {/* CABECERA (fija): marca, motor de lectura, ayuda y tema */}
+      <header className="sticky top-0 z-40 safe-top px-3 sm:px-5 py-2.5">
         <div className="glass-layer" aria-hidden="true" />
-        <div className="max-w-7xl mx-auto flex items-center gap-2 md:gap-3">
-          <div className="flex items-center gap-3 min-w-0 md:shrink">
-            <div className="tone-powder pastel-edge w-9 h-9 shrink-0 rounded-2xl flex items-center justify-center">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2.5 min-w-0 mr-auto">
+            <div className="pastel-edge w-9 h-9 shrink-0 rounded-xl flex items-center justify-center">
               <Cpu className="w-5 h-5" aria-hidden="true" />
             </div>
-            <div className="sr-only md:not-sr-only min-w-0">
-              <h1 className="t-h2 truncate" id="app-title-main">
-                Scanner & Sincronizador · Trámites de Tránsito
-              </h1>
-              <p className="t-caption header-sub hidden lg:block truncate">
-                Cédulas · Facturas · RUNT · Gases · Poderes — REST API v1.0
-              </p>
-            </div>
+            <h1 className="t-h2 truncate sr-only sm:not-sr-only" id="app-title-main">
+              Trámites de Tránsito
+            </h1>
           </div>
 
-          {/* Acciones */}
-          <div className="flex flex-1 min-w-0 flex-wrap md:flex-nowrap items-center gap-2 md:justify-end">
-            {/* SWITCH DE PROVEEDOR: GEMINI (NUBE) O LOCAL (OCR EN EL EQUIPO) */}
-            <div
-              className="seg flex-1 basis-32 md:basis-auto md:flex-none min-w-fit"
-              id="ai-engine-switch"
-              role="group"
-              aria-label="Proveedor de análisis de documentos"
-            >
-              <button
-                onClick={() => changeAiEngine("gemini")}
-                aria-pressed={aiEngine === "gemini"}
-                title="Gemini: análisis con IA en la nube"
-                className="seg-btn flex-1 md:flex-none"
-              >
-                Gemini
-              </button>
-              <button
-                onClick={() => changeAiEngine("jetson")}
-                aria-pressed={aiEngine === "jetson"}
-                title="OCR: API de reconocimiento de texto propia"
-                className="seg-btn flex-1 md:flex-none"
-              >
-                OCR
-              </button>
-            </div>
-
-            <a
-              href="/api-docs"
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-ghost btn-on-header min-w-8 pointer-coarse:min-w-11 shrink-0 !px-3 md:!px-5"
-              aria-label="API Docs"
-            >
-              <ExternalLink className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden md:inline">API Docs</span>
-            </a>
-
+          {/* Motor de lectura: OCR propio (por defecto) o Gemini en la nube */}
+          <div className="seg shrink-0" id="ai-engine-switch" role="group" aria-label="Motor de lectura de documentos">
             <button
-              onClick={() => setShowHelpModal(true)}
-              className="btn btn-secondary min-w-8 pointer-coarse:min-w-11 shrink-0 !px-3 md:!px-5"
-              id="btn-case-guide"
-              aria-label="Guía del Caso"
+              onClick={() => changeAiEngine("jetson")}
+              aria-pressed={aiEngine === "jetson"}
+              title="OCR: lector de documentos propio"
+              className="seg-btn"
             >
-              <BookOpen className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden md:inline">Guía del Caso</span>
+              OCR
             </button>
-
             <button
-              onClick={() => { const next = !isDark; setIsDark(next); localStorage.setItem("theme", next ? "dark" : "light"); }}
-              className="btn btn-ghost btn-icon btn-on-header shrink-0"
-              title={isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
-              aria-label={isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
-              id="btn-toggle-theme"
+              onClick={() => changeAiEngine("gemini")}
+              aria-pressed={aiEngine === "gemini"}
+              title="Gemini: análisis con IA en la nube"
+              className="seg-btn"
             >
-              {isDark ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
+              Gemini
             </button>
           </div>
+
+          <button
+            onClick={() => setShowHelpModal(true)}
+            className="btn btn-ghost btn-on-header shrink-0 !px-3 sm:!px-4"
+            id="btn-case-guide"
+            aria-label="Ayuda"
+          >
+            <BookOpen className="w-4 h-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Ayuda</span>
+          </button>
+
+          <button
+            onClick={() => { const next = !isDark; setIsDark(next); localStorage.setItem("theme", next ? "dark" : "light"); }}
+            className="btn btn-ghost btn-icon btn-on-header shrink-0"
+            title={isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
+            aria-label={isDark ? "Cambiar a tema claro" : "Cambiar a tema oscuro"}
+            id="btn-toggle-theme"
+          >
+            {isDark ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
+          </button>
         </div>
       </header>
-
-      {/* PROCESAMIENTO EN CURSO (Gemini / OCR) */}
-      {isAnalyzing && (
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-5 lg:px-8 pt-4 animate-screen-in" role="status" aria-live="polite" aria-busy="true">
-          <div className="pastel-soft tone-sky p-4 flex items-center gap-3">
-            <RefreshCw className="w-5 h-5 shrink-0 animate-spin" aria-hidden="true" />
-            <p className="t-body">
-              <span className="font-bold">Procesando trámite:</span>{" "}
-              <span>{analyzeMsg}</span>
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* ERROR (reemplaza a alert()) */}
       {errorNotice && (
@@ -409,7 +373,7 @@ export default function App() {
         <DocumentDropzone
           onAnalyze={handleAnalyzeDocument}
           isAnalyzing={isAnalyzing}
-          onShowHelp={() => setShowHelpModal(true)}
+          statusMessage={analyzeMsg}
           onNewTramite={handleNuevoTramite}
         />
 
@@ -417,11 +381,11 @@ export default function App() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-5 items-start">
 
           <div className="order-2 md:order-1 md:col-span-5 lg:col-span-4 min-w-0">
-            <div className="card overflow-hidden flex flex-col h-[26rem] md:h-[var(--panel-h)]">
-              <div className="px-5 py-4 shrink-0">
-                <h2 className="t-h2 flex items-center gap-2">
-                  Historial de Documentos
-                  <span className="t-caption nums">({documents.length})</span>
+            <div className="card overflow-hidden flex flex-col max-h-[26rem] md:max-h-none md:h-[var(--panel-h)]">
+              <div className="px-4 pt-4 pb-3 shrink-0">
+                <h2 className="t-h2 flex items-center gap-2" title={`${documents.length} documentos en total`}>
+                  Trámites
+                  <span className="t-caption nums">({tramiteCount})</span>
                 </h2>
               </div>
               <div className="border-t divider flex-1 min-h-0 overflow-y-auto custom-scrollbar">
@@ -514,7 +478,7 @@ export default function App() {
                 <div>
                   <p className="font-semibold mb-1">¿Qué hace esta aplicación?</p>
                   <p>
-                    Escanea un PDF con los documentos de un trámite de tránsito colombiano, extrae automáticamente los datos de cada documento usando <strong>Gemini AI</strong>, permite revisarlos y corregirlos, y los sincroniza con el sistema de registro externo.
+                    Escanea un PDF con los documentos de un trámite de tránsito colombiano, extrae automáticamente los datos de cada documento con el lector <strong>OCR</strong> propio o con <strong>Gemini</strong> (según el motor elegido arriba), permite revisarlos y corregirlos, y los sincroniza con el sistema de registro externo.
                   </p>
                 </div>
               </div>
@@ -551,7 +515,7 @@ export default function App() {
                     Arrastre o seleccione el PDF del trámite en la zona de carga. El sistema acepta un PDF con todos los documentos del cliente en un solo archivo.
                   </li>
                   <li>
-                    Gemini AI analiza el archivo en paralelo y detecta automáticamente los documentos presentes (hasta 5 tipos). Los resultados aparecen agrupados en el historial bajo el nombre del cliente.
+                    El motor elegido analiza el archivo y detecta automáticamente los documentos presentes (hasta 5 tipos). Los resultados aparecen agrupados en el historial bajo el nombre del cliente.
                   </li>
                   <li>
                     Revise cada documento en el panel central. Si algún dato fue extraído incorrectamente, corríjalo y presione <strong>"Guardar"</strong> para persistir los cambios en Firestore.
@@ -567,19 +531,18 @@ export default function App() {
             </div>
 
             <div className="p-4 border-t divider flex flex-wrap items-center justify-between gap-2 t-caption">
-              <span>DivergencyAI • API Rest v1.0</span>
+              <span>DivergencyAI</span>
+              <a href="/api-docs" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 underline font-semibold text-ink">
+                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                Documentación de la API
+              </a>
             </div>
           </div>
         </div>
       )}
 
-      {/* FOOTER */}
-      <footer className="bg-card border-t divider py-6 mt-auto">
-        <div className="max-w-7xl mx-auto px-5 flex flex-col items-center gap-1 text-center">
-          <span className="t-h2 uppercase tracking-tight">DivergencyAI</span>
-          <span className="t-caption">Todos los derechos reservados © 2026</span>
-        </div>
-      </footer>
+      {/* PIE */}
+      <footer className="py-5 mt-auto text-center t-caption">DivergencyAI · © 2026</footer>
 
     </div>
   );

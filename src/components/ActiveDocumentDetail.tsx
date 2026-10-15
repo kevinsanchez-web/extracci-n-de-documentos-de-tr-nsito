@@ -34,13 +34,22 @@ const DOC_META: Record<string, { label: string }> = {
 
 function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
-    <div className="flex items-center gap-2 mb-4">
-      <div className="text-ink-muted">{icon}</div>
-      <h4 className="t-caption uppercase tracking-wider font-bold">{title}</h4>
-      <div className="flex-1 h-px border-t divider" />
-    </div>
+    <h4 className="t-h2 text-ink mb-3 flex items-center gap-2">
+      <span className="text-ink-muted" aria-hidden="true">{icon}</span>
+      {title}
+    </h4>
   );
 }
+
+/** Campos de cada tipo, para contar cuáles quedaron vacíos y avisar que faltan por revisar. */
+const FIELD_KEYS: Record<string, string[]> = {
+  cedula: ["nombreCompleto", "numeroDocumento", "fechaNacimiento", "sexo", "rh", "estatura", "contacto.celular", "contacto.correo", "contacto.direccion"],
+  factura: ["numeroFactura", "fecha", "compradorNombre", "compradorIdentificacion", "vehiculoMarca", "vehiculoLinea", "vehiculoModelo", "vehiculoMotor", "vehiculoChasis", "vehiculoCilindrada", "vehiculoColor"],
+  runt: ["tramiteSolicitado", "propietarioNombre", "propietarioIdentificacion", "vehiculoMarca", "vehiculoLinea", "vehiculoCilindrada", "vehiculoModelo", "vehiculoChasis", "vehiculoMotor"],
+  gases: ["tipoCertificado", "fechaCertificado", "vehiculoMarca", "vehiculoLinea", "vehiculoCilindrada", "vehiculoModelo", "vehiculoMotor", "vehiculoChasis"],
+  poder: ["otorganteNombre", "otorganteIdentificacion", "apoderadoNombre"],
+};
+const valueAt = (obj: any, path: string) => path.split(".").reduce((acc: any, k) => (acc == null ? acc : acc[k]), obj);
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -86,9 +95,9 @@ export default function ActiveDocumentDetail({
         <div className="w-16 h-16 card-compact flex items-center justify-center mb-4">
           <FileText className="w-8 h-8 text-ink-muted" />
         </div>
-        <h3 className="t-h2 text-ink mb-1">Sin documento activo</h3>
-        <p className="t-caption max-w-[260px]">
-          Suba un archivo con "Nuevo Trámite" o seleccione un documento del historial para ver y editar sus datos.
+        <h3 className="t-h2 text-ink mb-1">Ningún documento abierto</h3>
+        <p className="t-caption max-w-[280px]">
+          Suba un trámite con «Nuevo trámite» o elija uno de la lista para revisar y corregir sus datos.
         </p>
       </div>
     );
@@ -103,6 +112,15 @@ export default function ActiveDocumentDetail({
   const rawConfidence = Math.round(document.confidence * 100);
   const confidence = Number.isFinite(rawConfidence) ? Math.max(0, Math.min(MAX_CONFIDENCE, rawConfidence)) : 0;
   const confLabel = confidence >= 90 ? "Alta" : confidence >= 75 ? "Media" : "Baja";
+
+  // Campos vacíos y cambios sin guardar
+  const emptyCount = editedData
+    ? (FIELD_KEYS[document.documentType] || []).filter((k) => {
+        const v = valueAt(editedData, k);
+        return v === undefined || v === null || String(v).trim() === "";
+      }).length
+    : 0;
+  const isDirty = Boolean(editedData) && JSON.stringify(editedData) !== JSON.stringify(document.extractedData);
 
   const set = (key: string, val: any) => setEditedData((p: any) => ({ ...p, [key]: val }));
   const setNested = (parent: string, child: string, val: any) =>
@@ -130,73 +148,53 @@ export default function ActiveDocumentDetail({
     <div className="card flex flex-col h-full overflow-clip">
 
       {/* PESTAÑAS POR TIPO (dentro de la tarjeta) */}
-      {tabs && <div className="px-5 pt-4 pb-1 shrink-0">{tabs}</div>}
+      {tabs && <div className="px-5 pt-3 shrink-0">{tabs}</div>}
 
-      {/* BANNER SUPERIOR */}
-      <div className="px-5 pt-5 pb-4 border-b divider">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      {/* ENCABEZADO: qué documento es, cuánto se confía en la lectura y qué falta revisar */}
+      <div className="px-5 pt-4 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="chip tone-powder">
-                {meta.label}
-              </span>
-              {document.syncStatus === "success" && (
-                <span className="chip tone-azure">
-                  <Check className="w-4 h-4" /> Sincronizado
-                </span>
-              )}
-            </div>
-            <p className="t-h1 text-ink truncate" title={document.fileName}>
-              {document.fileName}
+            <h3 className="t-h1 text-ink truncate">{meta.label}</h3>
+            <p className="t-caption truncate" title={`${document.fileName} · ID ${document.id}`}>
+              {document.fileName} · <span className="nums">{new Date(document.scannedAt).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
             </p>
-            <p className="t-caption italic line-clamp-2 mt-0.5">"{document.summary}"</p>
           </div>
 
-          {/* Confianza IA */}
           <div
-            className="shrink-0 sm:text-right"
+            className="shrink-0 flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-end"
             title="Porcentaje del análisis automático: mide cuántos campos clave se encontraron y qué tan bien se leyó, no que los datos sean correctos."
           >
-            <div className="t-caption uppercase tracking-wider mb-1">
-              Confianza IA
-            </div>
-            <div className="flex items-center gap-2 sm:justify-end">
-              <div className="w-24 h-2.5 bg-app rounded-full overflow-hidden">
+            <div className="flex items-center gap-2">
+              <div className="w-14 h-1.5 bg-app rounded-full overflow-hidden" aria-hidden="true">
                 <div
                   className={`h-full rounded-full ${confidence >= 90 ? "bg-[var(--accent)]" : confidence >= 75 ? "bg-pastel-butter" : "bg-pastel-coral"}`}
                   style={{ width: `${confidence}%` }}
                 />
               </div>
-              <span className="t-h2 text-ink nums">
-                {confidence}%
-              </span>
+              <span className="t-h2 text-ink nums">{confidence}%</span>
+              <span className="t-caption">{confLabel}</span>
             </div>
-            <div className="t-caption mt-0.5">{confLabel} precisión</div>
+            {emptyCount > 0 && (
+              <span className="chip tone-butter" title="Campos de este documento que no se pudieron leer: complételos antes de sincronizar">
+                {emptyCount} {emptyCount === 1 ? "campo vacío" : "campos vacíos"}
+              </span>
+            )}
             {reviewed && (
-              <div className="mt-1.5 sm:flex sm:justify-end">
-                <span className="chip tone-azure" title="Un usuario corrigió o completó estos datos después del análisis automático">
-                  <Check className="w-3.5 h-3.5" aria-hidden="true" /> Revisado manualmente
-                </span>
-              </div>
+              <span className="chip tone-azure" title="Un usuario corrigió o completó estos datos después del análisis automático">
+                <Check className="w-3.5 h-3.5" aria-hidden="true" /> Revisado
+              </span>
+            )}
+            {document.syncStatus === "success" && (
+              <span className="chip tone-azure">
+                <Check className="w-3.5 h-3.5" aria-hidden="true" /> Sincronizado
+              </span>
             )}
           </div>
-        </div>
-
-        {/* Timestamps */}
-        <div className="flex flex-wrap items-center gap-4 mt-3 t-caption">
-          <span className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            {new Date(document.scannedAt).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-          </span>
-          <span className="flex items-center gap-1">
-            <Zap className="w-4 h-4" />
-            ID: <code className="font-mono">{document.id.slice(0, 16)}…</code>
-          </span>
         </div>
       </div>
 
       {/* FORMULARIO DE DATOS */}
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-6">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 pb-6 pt-1 space-y-8 border-t divider">
         {editedData && (
           <>
             {/* CÉDULA */}
@@ -206,15 +204,15 @@ export default function ActiveDocumentDetail({
                   <SectionHeader icon={<User className="w-4 h-4" />} title="Información de Identidad" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Nombre Completo">
-                      <input type="text" value={editedData.nombreCompleto || ""} onChange={e => set("nombreCompleto", e.target.value)} className={`${inputCls} uppercase font-semibold`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.nombreCompleto || ""} onChange={e => set("nombreCompleto", e.target.value)} className={`${inputCls} uppercase font-semibold`} />
                     </Field>
                     <Field label="Número de Cédula">
-                      <input type="text" value={editedData.numeroDocumento || ""} onChange={e => set("numeroDocumento", e.target.value)} className={`${inputCls} nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.numeroDocumento || ""} onChange={e => set("numeroDocumento", e.target.value)} className={`${inputCls} nums`} />
                     </Field>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                     <Field label="Nacimiento">
-                      <input type="text" value={editedData.fechaNacimiento || ""} onChange={e => set("fechaNacimiento", e.target.value)} className={`${inputCls} nums text-center`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.fechaNacimiento || ""} onChange={e => set("fechaNacimiento", e.target.value)} className={`${inputCls} nums text-center`} />
                     </Field>
                     <Field label="Sexo">
                       <PillSelect
@@ -229,10 +227,10 @@ export default function ActiveDocumentDetail({
                       />
                     </Field>
                     <Field label="RH">
-                      <input type="text" value={editedData.rh || ""} onChange={e => set("rh", e.target.value)} className={`${inputCls} text-center nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.rh || ""} onChange={e => set("rh", e.target.value)} className={`${inputCls} text-center nums`} />
                     </Field>
                     <Field label="Estatura">
-                      <input type="text" value={editedData.estatura || ""} onChange={e => set("estatura", e.target.value)} className={`${inputCls} text-center nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.estatura || ""} onChange={e => set("estatura", e.target.value)} className={`${inputCls} text-center nums`} />
                     </Field>
                   </div>
                 </div>
@@ -243,13 +241,13 @@ export default function ActiveDocumentDetail({
                     <Field label="Teléfono Celular">
                       <div className="relative">
                         <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
-                        <input type="text" value={editedData.contacto?.celular || ""} onChange={e => setNested("contacto", "celular", e.target.value)} className={`${inputCls} nums`} style={{ paddingLeft: "2.5rem" }} />
+                        <input type="text" placeholder="Sin dato" value={editedData.contacto?.celular || ""} onChange={e => setNested("contacto", "celular", e.target.value)} className={`${inputCls} nums`} style={{ paddingLeft: "2.5rem" }} />
                       </div>
                     </Field>
                     <Field label="Correo Electrónico">
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
-                        <input type="text" value={editedData.contacto?.correo || ""} onChange={e => setNested("contacto", "correo", e.target.value)} className={`${inputCls} nums`} style={{ paddingLeft: "2.5rem" }} />
+                        <input type="text" placeholder="Sin dato" value={editedData.contacto?.correo || ""} onChange={e => setNested("contacto", "correo", e.target.value)} className={`${inputCls} nums`} style={{ paddingLeft: "2.5rem" }} />
                       </div>
                     </Field>
                   </div>
@@ -257,7 +255,7 @@ export default function ActiveDocumentDetail({
                     <Field label="Dirección de Residencia">
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
-                        <input type="text" value={editedData.contacto?.direccion || ""} onChange={e => setNested("contacto", "direccion", e.target.value)} className={`${inputCls}`} style={{ paddingLeft: "2.5rem" }} />
+                        <input type="text" placeholder="Sin dato" value={editedData.contacto?.direccion || ""} onChange={e => setNested("contacto", "direccion", e.target.value)} className={`${inputCls}`} style={{ paddingLeft: "2.5rem" }} />
                       </div>
                     </Field>
                   </div>
@@ -272,19 +270,19 @@ export default function ActiveDocumentDetail({
                   <SectionHeader icon={<Hash className="w-4 h-4" />} title="Datos de Facturación" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="No. Factura">
-                      <input type="text" value={editedData.numeroFactura || ""} onChange={e => set("numeroFactura", e.target.value)} className={`${inputCls} nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.numeroFactura || ""} onChange={e => set("numeroFactura", e.target.value)} className={`${inputCls} nums`} />
                     </Field>
                     <Field label="Fecha Emisión">
                       <div className="relative">
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
-                        <input type="text" value={editedData.fecha || ""} onChange={e => set("fecha", e.target.value)} className={`${inputCls} nums`} style={{ paddingLeft: "2.5rem" }} />
+                        <input type="text" placeholder="Sin dato" value={editedData.fecha || ""} onChange={e => set("fecha", e.target.value)} className={`${inputCls} nums`} style={{ paddingLeft: "2.5rem" }} />
                       </div>
                     </Field>
                     <Field label="Comprador">
-                      <input type="text" value={editedData.compradorNombre || ""} onChange={e => set("compradorNombre", e.target.value)} className={`${inputCls} uppercase`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.compradorNombre || ""} onChange={e => set("compradorNombre", e.target.value)} className={`${inputCls} uppercase`} />
                     </Field>
                     <Field label="C.C. / NIT Comprador">
-                      <input type="text" value={editedData.compradorIdentificacion || ""} onChange={e => set("compradorIdentificacion", e.target.value)} className={`${inputCls} nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.compradorIdentificacion || ""} onChange={e => set("compradorIdentificacion", e.target.value)} className={`${inputCls} nums`} />
                     </Field>
                   </div>
                 </div>
@@ -293,27 +291,27 @@ export default function ActiveDocumentDetail({
                   <SectionHeader icon={<Award className="w-4 h-4" />} title="Vehículo" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <Field label="Marca">
-                      <input type="text" value={editedData.vehiculoMarca || ""} onChange={e => set("vehiculoMarca", e.target.value)} className={inputCls} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoMarca || ""} onChange={e => set("vehiculoMarca", e.target.value)} className={inputCls} />
                     </Field>
                     <Field label="Línea / Referencia">
-                      <input type="text" value={editedData.vehiculoLinea || ""} onChange={e => set("vehiculoLinea", e.target.value)} className={`${inputCls} nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoLinea || ""} onChange={e => set("vehiculoLinea", e.target.value)} className={`${inputCls} nums`} />
                     </Field>
                     <Field label="Modelo (Año)">
-                      <input type="text" value={editedData.vehiculoModelo || ""} onChange={e => set("vehiculoModelo", e.target.value)} className={`${inputCls} nums text-center`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoModelo || ""} onChange={e => set("vehiculoModelo", e.target.value)} className={`${inputCls} nums text-center`} />
                     </Field>
                     <Field label="No. Motor">
-                      <input type="text" value={editedData.vehiculoMotor || ""} onChange={e => set("vehiculoMotor", e.target.value)} className={`${inputCls} nums uppercase`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoMotor || ""} onChange={e => set("vehiculoMotor", e.target.value)} className={`${inputCls} nums uppercase`} />
                     </Field>
                     <Field label="No. Chasis / VIN">
-                      <input type="text" value={editedData.vehiculoChasis || ""} onChange={e => set("vehiculoChasis", e.target.value)} className={`${inputCls} nums uppercase`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoChasis || ""} onChange={e => set("vehiculoChasis", e.target.value)} className={`${inputCls} nums uppercase`} />
                     </Field>
                     <Field label="Cilindrada">
-                      <input type="text" value={editedData.vehiculoCilindrada || ""} onChange={e => set("vehiculoCilindrada", e.target.value)} className={`${inputCls} text-center nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoCilindrada || ""} onChange={e => set("vehiculoCilindrada", e.target.value)} className={`${inputCls} text-center nums`} />
                     </Field>
                   </div>
                   <div className="mt-3">
                     <Field label="Color">
-                      <input type="text" value={editedData.vehiculoColor || ""} onChange={e => set("vehiculoColor", e.target.value)} className={inputCls} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoColor || ""} onChange={e => set("vehiculoColor", e.target.value)} className={inputCls} />
                     </Field>
                   </div>
                 </div>
@@ -339,14 +337,14 @@ export default function ActiveDocumentDetail({
                 <div>
                   <SectionHeader icon={<FileText className="w-4 h-4" />} title="Solicitud RUNT" />
                   <Field label="Trámite Solicitado">
-                    <input type="text" value={editedData.tramiteSolicitado || ""} onChange={e => set("tramiteSolicitado", e.target.value)} className={`${inputCls} uppercase font-bold`} />
+                    <input type="text" placeholder="Sin dato" value={editedData.tramiteSolicitado || ""} onChange={e => set("tramiteSolicitado", e.target.value)} className={`${inputCls} uppercase font-bold`} />
                   </Field>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                     <Field label="Propietario / Comprador">
-                      <input type="text" value={editedData.propietarioNombre || ""} onChange={e => set("propietarioNombre", e.target.value)} className={`${inputCls} uppercase`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.propietarioNombre || ""} onChange={e => set("propietarioNombre", e.target.value)} className={`${inputCls} uppercase`} />
                     </Field>
                     <Field label="C.C. / NIT">
-                      <input type="text" value={editedData.propietarioIdentificacion || ""} onChange={e => set("propietarioIdentificacion", e.target.value)} className={`${inputCls} nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.propietarioIdentificacion || ""} onChange={e => set("propietarioIdentificacion", e.target.value)} className={`${inputCls} nums`} />
                     </Field>
                   </div>
                 </div>
@@ -355,24 +353,24 @@ export default function ActiveDocumentDetail({
                   <SectionHeader icon={<Award className="w-4 h-4" />} title="Especificaciones del Vehículo" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     <Field label="Marca">
-                      <input type="text" value={editedData.vehiculoMarca || ""} onChange={e => set("vehiculoMarca", e.target.value)} className={inputCls} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoMarca || ""} onChange={e => set("vehiculoMarca", e.target.value)} className={inputCls} />
                     </Field>
                     <Field label="Línea">
-                      <input type="text" value={editedData.vehiculoLinea || ""} onChange={e => set("vehiculoLinea", e.target.value)} className={`${inputCls} nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoLinea || ""} onChange={e => set("vehiculoLinea", e.target.value)} className={`${inputCls} nums`} />
                     </Field>
                     <Field label="Cilindrada">
-                      <input type="text" value={editedData.vehiculoCilindrada || ""} onChange={e => set("vehiculoCilindrada", e.target.value)} className={`${inputCls} text-center nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoCilindrada || ""} onChange={e => set("vehiculoCilindrada", e.target.value)} className={`${inputCls} text-center nums`} />
                     </Field>
                     <Field label="Modelo">
-                      <input type="text" value={editedData.vehiculoModelo || ""} onChange={e => set("vehiculoModelo", e.target.value)} className={`${inputCls} text-center nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoModelo || ""} onChange={e => set("vehiculoModelo", e.target.value)} className={`${inputCls} text-center nums`} />
                     </Field>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                     <Field label="Serial Chasis">
-                      <input type="text" value={editedData.vehiculoChasis || ""} onChange={e => set("vehiculoChasis", e.target.value)} className={`${inputCls} nums uppercase`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoChasis || ""} onChange={e => set("vehiculoChasis", e.target.value)} className={`${inputCls} nums uppercase`} />
                     </Field>
                     <Field label="Serial Motor">
-                      <input type="text" value={editedData.vehiculoMotor || ""} onChange={e => set("vehiculoMotor", e.target.value)} className={`${inputCls} nums uppercase`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoMotor || ""} onChange={e => set("vehiculoMotor", e.target.value)} className={`${inputCls} nums uppercase`} />
                     </Field>
                   </div>
                 </div>
@@ -386,12 +384,12 @@ export default function ActiveDocumentDetail({
                   <SectionHeader icon={<Award className="w-4 h-4" />} title="Certificado Técnico" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Tipo de Certificado">
-                      <input type="text" value={editedData.tipoCertificado || ""} onChange={e => set("tipoCertificado", e.target.value)} className={`${inputCls} font-semibold`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.tipoCertificado || ""} onChange={e => set("tipoCertificado", e.target.value)} className={`${inputCls} font-semibold`} />
                     </Field>
                     <Field label="Fecha Certificación">
                       <div className="relative">
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
-                        <input type="text" value={editedData.fechaCertificado || ""} onChange={e => set("fechaCertificado", e.target.value)} className={`${inputCls} nums`} style={{ paddingLeft: "2.5rem" }} />
+                        <input type="text" placeholder="Sin dato" value={editedData.fechaCertificado || ""} onChange={e => set("fechaCertificado", e.target.value)} className={`${inputCls} nums`} style={{ paddingLeft: "2.5rem" }} />
                       </div>
                     </Field>
                   </div>
@@ -401,24 +399,24 @@ export default function ActiveDocumentDetail({
                   <SectionHeader icon={<Award className="w-4 h-4" />} title="Datos del Vehículo" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     <Field label="Marca">
-                      <input type="text" value={editedData.vehiculoMarca || ""} onChange={e => set("vehiculoMarca", e.target.value)} className={inputCls} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoMarca || ""} onChange={e => set("vehiculoMarca", e.target.value)} className={inputCls} />
                     </Field>
                     <Field label="Línea">
-                      <input type="text" value={editedData.vehiculoLinea || ""} onChange={e => set("vehiculoLinea", e.target.value)} className={`${inputCls} nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoLinea || ""} onChange={e => set("vehiculoLinea", e.target.value)} className={`${inputCls} nums`} />
                     </Field>
                     <Field label="Cilindrada">
-                      <input type="text" value={editedData.vehiculoCilindrada || ""} onChange={e => set("vehiculoCilindrada", e.target.value)} className={`${inputCls} text-center nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoCilindrada || ""} onChange={e => set("vehiculoCilindrada", e.target.value)} className={`${inputCls} text-center nums`} />
                     </Field>
                     <Field label="Modelo">
-                      <input type="text" value={editedData.vehiculoModelo || ""} onChange={e => set("vehiculoModelo", e.target.value)} className={`${inputCls} text-center nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoModelo || ""} onChange={e => set("vehiculoModelo", e.target.value)} className={`${inputCls} text-center nums`} />
                     </Field>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                     <Field label="No. Motor">
-                      <input type="text" value={editedData.vehiculoMotor || ""} onChange={e => set("vehiculoMotor", e.target.value)} className={`${inputCls} nums uppercase`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoMotor || ""} onChange={e => set("vehiculoMotor", e.target.value)} className={`${inputCls} nums uppercase`} />
                     </Field>
                     <Field label="No. Chasis / VIN">
-                      <input type="text" value={editedData.vehiculoChasis || ""} onChange={e => set("vehiculoChasis", e.target.value)} className={`${inputCls} nums uppercase`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.vehiculoChasis || ""} onChange={e => set("vehiculoChasis", e.target.value)} className={`${inputCls} nums uppercase`} />
                     </Field>
                   </div>
                 </div>
@@ -432,15 +430,15 @@ export default function ActiveDocumentDetail({
                   <SectionHeader icon={<PenTool className="w-4 h-4" />} title="Poder Especial Otorgado" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Otorgante">
-                      <input type="text" value={editedData.otorganteNombre || ""} onChange={e => set("otorganteNombre", e.target.value)} className={`${inputCls} uppercase`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.otorganteNombre || ""} onChange={e => set("otorganteNombre", e.target.value)} className={`${inputCls} uppercase`} />
                     </Field>
                     <Field label="C.C. Otorgante">
-                      <input type="text" value={editedData.otorganteIdentificacion || ""} onChange={e => set("otorganteIdentificacion", e.target.value)} className={`${inputCls} nums`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.otorganteIdentificacion || ""} onChange={e => set("otorganteIdentificacion", e.target.value)} className={`${inputCls} nums`} />
                     </Field>
                   </div>
                   <div className="mt-3">
                     <Field label="Apoderado Designado">
-                      <input type="text" value={editedData.apoderadoNombre || ""} onChange={e => set("apoderadoNombre", e.target.value)} className={`${inputCls} font-semibold uppercase`} />
+                      <input type="text" placeholder="Sin dato" value={editedData.apoderadoNombre || ""} onChange={e => set("apoderadoNombre", e.target.value)} className={`${inputCls} font-semibold uppercase`} />
                     </Field>
                   </div>
                 </div>
@@ -481,7 +479,7 @@ export default function ActiveDocumentDetail({
       </div>
 
       {/* BARRA DE ACCIONES */}
-      <div className="shrink-0 bg-card border-t divider p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:p-5 sticky bottom-0 sm:static z-10">
+      <div className="shrink-0 bg-card border-t divider p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:px-5 sm:py-4 sticky bottom-0 sm:static z-10">
         {successMsg && (
           <div className="flex items-center gap-2 pastel-soft tone-azure t-caption text-ink px-3 py-2 mb-4" role="status">
             <Check className="w-4 h-4 shrink-0" />
@@ -508,7 +506,7 @@ export default function ActiveDocumentDetail({
           ) : (
             <button
               onClick={() => setConfirmingDelete(true)}
-              className="btn btn-danger shrink-0 min-w-11 sm:min-w-0 !px-0 sm:!px-5"
+              className="btn btn-ghost shrink-0 min-w-11 sm:min-w-0 !px-0 sm:!px-4 text-[var(--danger-ink)]"
               title="Eliminar documento permanentemente"
               aria-label="Eliminar documento"
             >
@@ -519,8 +517,9 @@ export default function ActiveDocumentDetail({
 
           <button
             onClick={handleSave}
-            disabled={isSaving}
-            className="btn btn-ghost shrink-0 min-w-11 sm:min-w-0 !px-0 sm:!px-5"
+            disabled={isSaving || !isDirty}
+            title={isDirty ? "Guardar los cambios de este documento" : "No hay cambios por guardar"}
+            className={`btn shrink-0 min-w-11 sm:min-w-0 !px-0 sm:!px-5 ${isDirty ? "btn-secondary" : "btn-ghost"}`}
             id="btn-save-extracted"
             aria-label={isSaving ? "Guardando" : "Guardar cambios"}
           >
@@ -531,6 +530,7 @@ export default function ActiveDocumentDetail({
           <button
             onClick={() => onSyncDocument(document.id)}
             disabled={isSyncing}
+            title={`Enviar los datos a ${apiUrl}`}
             className={`btn flex-1 min-w-0 ${document.syncStatus === "success" ? "btn-info" : "btn-primary"}`}
             id="btn-sync-document"
           >
@@ -544,9 +544,6 @@ export default function ActiveDocumentDetail({
           </button>
         </div>
 
-        <p className="t-caption text-center mt-2 hidden sm:block">
-          Destino: <code className="font-mono text-ink">{apiUrl.length > 40 ? apiUrl.slice(0, 40) + "…" : apiUrl}</code>
-        </p>
       </div>
     </div>
   );

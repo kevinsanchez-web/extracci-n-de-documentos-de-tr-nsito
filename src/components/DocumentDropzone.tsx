@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef } from "react";
-import { Upload, HelpCircle, Loader2, Plus, TriangleAlert } from "lucide-react";
+import { Upload, Loader2, Plus, TriangleAlert } from "lucide-react";
 
 /** Tamaño máximo de archivo en MB (base64 + 33 % debe caber en los 32 MB de la Cloud Function de 2.ª generación). */
 const MAX_FILE_MB = 15;
@@ -12,11 +12,13 @@ const MAX_FILE_MB = 15;
 interface DocumentDropzoneProps {
   onAnalyze: (base64: string, mimeType: string, fileName: string) => void;
   isAnalyzing: boolean;
-  onShowHelp: () => void;
+  /** Paso actual del análisis, que se muestra aquí mismo (así no aparece un aviso aparte que mueva la pantalla) */
+  statusMessage?: string;
+  onShowHelp?: () => void;
   onNewTramite: () => void;
 }
 
-export default function DocumentDropzone({ onAnalyze, isAnalyzing, onShowHelp, onNewTramite }: DocumentDropzoneProps) {
+export default function DocumentDropzone({ onAnalyze, isAnalyzing, statusMessage, onNewTramite }: DocumentDropzoneProps) {
   const [isDragActive, setIsDragActive] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -65,78 +67,76 @@ export default function DocumentDropzone({ onAnalyze, isAnalyzing, onShowHelp, o
 
   return (
     <div className="card p-3 sm:p-4">
-      <div className="flex flex-col md:flex-row md:items-center gap-3">
-        {/* Zona de arrastre / clic: una sola fila compacta */}
-        <div
-          role="button"
-          tabIndex={isAnalyzing ? -1 : 0}
-          aria-busy={isAnalyzing}
-          aria-disabled={isAnalyzing}
-          aria-label="Subir documento: arrastre un archivo o presione Enter para buscar en su equipo"
-          onDragEnter={handleDrag}
-          onDragOver={handleDrag}
-          onDragLeave={handleDrag}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              fileInputRef.current?.click();
-            }
-          }}
-          className={`flex-1 min-w-0 flex items-center gap-3 border border-dashed rounded-2xl px-4 py-3 cursor-pointer transition-colors duration-200 ${
-            isDragActive ? "tone-sky pastel-soft" : "border-line"
-          } ${isAnalyzing ? "opacity-60 pointer-events-none" : ""}`}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            accept="image/*,application/pdf"
-            onChange={handleChange}
-            disabled={isAnalyzing}
-          />
-          <div className="tone-powder pastel-edge w-9 h-9 shrink-0 rounded-full flex items-center justify-center">
+      {/* Una sola zona: se puede arrastrar un archivo aquí o pulsar el botón. */}
+      <div
+        role="button"
+        tabIndex={isAnalyzing ? -1 : 0}
+        aria-busy={isAnalyzing}
+        aria-disabled={isAnalyzing}
+        aria-label="Subir documento: arrastre un archivo o presione Enter para buscar en su equipo"
+        onDragEnter={handleDrag}
+        onDragOver={handleDrag}
+        onDragLeave={handleDrag}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
+        className={`flex flex-col sm:flex-row sm:items-center gap-3 border border-dashed rounded-2xl px-4 py-3 cursor-pointer transition-colors duration-200 ${
+          isDragActive ? "tone-sky pastel-soft" : "border-line"
+        } ${isAnalyzing ? "pointer-events-none" : ""}`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept="image/*,application/pdf"
+          onChange={handleChange}
+          disabled={isAnalyzing}
+        />
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="pastel-edge w-10 h-10 shrink-0 rounded-full flex items-center justify-center">
             {isAnalyzing ? (
-              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+              <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
             ) : (
-              <Upload className="w-4 h-4" aria-hidden="true" />
+              <Upload className="w-5 h-5" aria-hidden="true" />
             )}
           </div>
-          <div className="min-w-0">
-            <p className="t-body font-medium text-ink md:truncate leading-snug" role={isAnalyzing ? "status" : undefined}>
-              {isAnalyzing ? (
-                "Analizando documento…"
-              ) : (
-                <>
-                  Arrastre aquí su documento ó{" "}
-                  <span className="underline font-semibold">busque en su equipo</span>
-                </>
-              )}
-            </p>
-            <p className="t-caption md:truncate leading-snug">Imágenes (JPG, PNG, WEBP) o PDF de trámites</p>
+          <div className="min-w-0 flex-1">
+            {isAnalyzing ? (
+              <>
+                <p className="t-body font-medium text-ink truncate" role="status" aria-live="polite">
+                  {statusMessage || "Analizando documento…"}
+                </p>
+                <div className="progress-line mt-2" aria-hidden="true" />
+              </>
+            ) : (
+              <>
+                <p className="t-body font-medium text-ink leading-snug">Arrastre aquí un PDF o una imagen del trámite</p>
+                <p className="t-caption leading-snug">También puede elegirlo desde su equipo · JPG, PNG, WEBP o PDF · hasta {MAX_FILE_MB} MB</p>
+              </>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 md:shrink-0">
-          <button onClick={onShowHelp} className="btn btn-ghost flex-1 md:flex-none">
-            <HelpCircle className="w-4 h-4" aria-hidden="true" />
-            Guía de Archivos
-          </button>
-          <button
-            onClick={() => {
-              onNewTramite();
-              setFileError(null);
-              fileInputRef.current?.click();
-            }}
-            disabled={isAnalyzing}
-            className="btn btn-primary flex-1 md:flex-none"
-            title="Limpiar la selección y elegir los documentos del nuevo cliente"
-          >
-            <Plus className="w-4 h-4" aria-hidden="true" />
-            Nuevo Trámite
-          </button>
-        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onNewTramite();
+            setFileError(null);
+            fileInputRef.current?.click();
+          }}
+          disabled={isAnalyzing}
+          className="btn btn-primary w-full sm:w-auto shrink-0"
+          title="Empezar un trámite nuevo: elija los documentos del cliente"
+        >
+          <Plus className="w-4 h-4" aria-hidden="true" />
+          Nuevo trámite
+        </button>
       </div>
 
       {fileError && (
