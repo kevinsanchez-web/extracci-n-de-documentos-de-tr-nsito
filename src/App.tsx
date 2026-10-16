@@ -521,7 +521,7 @@ export default function App() {
                     Revise cada documento en el panel central. Si algún dato fue extraído incorrectamente, corríjalo y presione <strong>"Guardar"</strong> para persistir los cambios en Firestore.
                   </li>
                   <li>
-                    Haga clic en <strong>"Sincronizar"</strong> para enviar el documento al sistema externo de registro. El estado cambiará a <em>Sincronizado</em> y podrá ver el log completo del request/response HTTP.
+                    Haga clic en <strong>"Sincronizar"</strong> para enviar el documento al sistema externo de registro. El estado pasará de <em>Pendiente de envío a destino</em> a <em>Enviado a destino</em> y podrá ver el log completo del request/response HTTP.
                   </li>
                   <li>
                     Use <strong>"+ Nuevo Trámite"</strong> en el historial para limpiar la sesión activa y procesar el siguiente cliente sin borrar los registros guardados.

@@ -186,7 +186,7 @@ export default function ActiveDocumentDetail({
             )}
             {document.syncStatus === "success" && (
               <span className="chip tone-azure">
-                <Check className="w-3.5 h-3.5" aria-hidden="true" /> Sincronizado
+                <Check className="w-3.5 h-3.5" aria-hidden="true" /> Enviado a destino
               </span>
             )}
           </div>

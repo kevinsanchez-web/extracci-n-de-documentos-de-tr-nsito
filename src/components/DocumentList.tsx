@@ -53,17 +53,24 @@ const TYPE_LABELS: Record<string, string> = {
   desconocido: "Otro",
 };
 
+// Estado de envío al sistema destino. Texto completo (trámites, filtros) y corto (filas, donde hay poco espacio).
 const STATUS_LABELS: Record<string, string> = {
-  success: "Sincronizado",
-  failed: "Fallo",
-  mixed: "Parcial",
-  pending: "Pendiente",
+  success: "Enviado a destino",
+  failed: "Fallo al enviar a destino",
+  mixed: "Envío parcial a destino",
+  pending: "Pendiente de envío a destino",
+};
+const STATUS_SHORT: Record<string, string> = {
+  success: "Enviado",
+  failed: "Fallo al enviar",
+  mixed: "Envío parcial",
+  pending: "Pendiente de envío",
 };
 
-/** Estado de sincronización: punto de color y una palabra. */
-function Status({ status }: { status: string }) {
+/** Estado de envío al destino: punto de color y texto. */
+function Status({ status, short = false }: { status: string; short?: boolean }) {
   const known = status in STATUS_LABELS ? status : "pending";
-  return <span className="status" data-s={known}>{STATUS_LABELS[known]}</span>;
+  return <span className="status" data-s={known} title={STATUS_LABELS[known]}>{(short ? STATUS_SHORT : STATUS_LABELS)[known]}</span>;
 }
 
 /** Borde izquierdo y tono suave para lo que está abierto en el panel de detalle. */
@@ -179,13 +186,13 @@ export default function DocumentList({ documents, activeId, onSelect, onDelete, 
             <PillSelect
               value={selectedStatus}
               onChange={setSelectedStatus}
-              ariaLabel="Filtrar por estado de sincronización"
+              ariaLabel="Filtrar por estado de envío"
               align="right"
               options={[
                 { value: "", label: "Todos los estados" },
-                { value: "pending", label: "Pendientes" },
-                { value: "success", label: "Sincronizados" },
-                { value: "failed", label: "Con fallo" },
+                { value: "pending", label: "Pendientes de envío" },
+                { value: "success", label: "Enviados a destino" },
+                { value: "failed", label: "Con fallo de envío" },
               ]}
             />
           </div>
@@ -281,7 +288,7 @@ function DocRow({ doc, isActive, onSelect, onDelete, nested = false }: {
     >
       <span className="t-body font-medium text-ink w-16 shrink-0">{TYPE_LABELS[doc.documentType] || "Otro"}</span>
       <span className="t-caption truncate flex-1 min-w-0">{doc.summary || doc.fileName}</span>
-      <Status status={doc.syncStatus} />
+      <Status status={doc.syncStatus} short />
       <button
         onClick={(e) => onDelete(doc.id, e)}
         className="btn btn-ghost btn-icon shrink-0 md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100 transition-opacity"
